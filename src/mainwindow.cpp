@@ -32,6 +32,7 @@ MainWindow::MainWindow (QWidget *parent) : QMainWindow (parent)
     connect(&tray, &QSystemTrayIcon::activated, this, &MainWindow::handleTrayActivation);
     QMenu* menu = new QMenu(this);
     menu->addAction(tr("Exit"), this, &QMainWindow::close);
+    menu->addAction(tr("Show"), this, &QMainWindow::show);
     tray.setContextMenu(menu);
     tray.show();
 
