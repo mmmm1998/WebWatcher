@@ -6,8 +6,6 @@
 #include <QCryptographicHash>
 #include <QTimer>
 #include <QWebEnginePage>
-#include <QXmlStreamReader>
-#include <QXmlStreamWriter>
 
 using namespace std;
 
@@ -135,47 +133,106 @@ void WebWatcher::handleJsCallback(int64_t id, QVariant callbackResult, QWebEngin
     page->deleteLater();
 }
 
-void WebWatcher::save(QIODevice* device)
+QDomElement WebWatcher::toXml(QDomDocument& doc)
 {
-    QXmlStreamWriter writer(device);
-    writer.setAutoFormatting(true);
-    writer.writeStartDocument();
-    writer.writeStartElement(QLatin1String("WebWatcher"));
+    QDomElement root = doc.createElement(QLatin1String("WebWatcher"));
 
-    writer.writeAttribute(QLatin1String("id_counter"), QString::number(id_count));
-    writer.writeAttribute(QLatin1String("sites_count"), QString::number(sites.size()));
+    root.setAttribute(QLatin1String("id_counter"), QString::number(id_count));
+    root.setAttribute(QLatin1String("sites_count"), QString::number(sites.size()));
 
     for(const WatchedSite& site: sites)
     {
-        writer.writeStartElement(QLatin1String("WatchedSite"));
-        writer.writeAttribute(QLatin1String("id"), QString::number(site.id));
-        writer.writeAttribute(QLatin1String("probes_count"), QString::number(site.probes.size()));
+        QDomElement siteElem = doc.createElement(QLatin1String("WatchedSite"));
 
-        writer.writeTextElement(QLatin1String("Url"), site.url.toString());
-        writer.writeTextElement(QLatin1String("Title"), site.title);
-        writer.writeTextElement(QLatin1String("Query"), site.jsQuery);
-        writer.writeTextElement(QLatin1String("Interval"), QString::number(site.updateIntervalMs));
+        siteElem.setAttribute(QLatin1String("id"), QString::number(site.id));
+        siteElem.setAttribute(QLatin1String("probes_count"), QString::number(site.probes.size()));
+
+        addNamedTextNode(siteElem, doc, QLatin1String("Url"), site.url.toString());
+
+        addNamedTextNode(siteElem, doc, QLatin1String("Title"), site.title);
+        addNamedTextNode(siteElem, doc, QLatin1String("Query"), site.jsQuery);
+        addNamedTextNode(siteElem, doc, QLatin1String("Interval"), QString::number(site.updateIntervalMs));
         for (const WatchedSiteProbe& probe: site.probes)
         {
-            writer.writeStartElement(QLatin1String("WatchedSiteProbe"));
-            writer.writeTextElement(QLatin1String("AccessTime"), QString::number(probe.accessTime));
-            writer.writeTextElement(QLatin1String("Text"), probe.text);
-            writer.writeTextElement(QLatin1String("Hash"), QString::fromLatin1(probe.hash.toBase64()));
-            writer.writeEndElement();
+            QDomElement probeElem  = doc.createElement(QLatin1String("WatchedSiteProbe"));
+            addNamedTextNode(probeElem, doc, QLatin1String("AccessTime"), QString::number(probe.accessTime));
+            addNamedTextNode(probeElem, doc, QLatin1String("Text"), probe.text);
+            addNamedTextNode(probeElem, doc, QLatin1String("Hash"), QString::fromLatin1(probe.hash.toBase64()));
+            siteElem.appendChild(probeElem);
         }
-        writer.writeEndElement();
+        root.appendChild(siteElem);
     }
 
-    writer.writeEndElement();
-    writer.writeEndDocument();
+    return root;
 }
 
-void WebWatcher::load(QIODevice* device)
+void WebWatcher::fromXml(const QDomElement& content)
 {
+    assert(content.tagName() == QLatin1String("WebWatcher"));
+
+    assert(content.attributes().contains(QLatin1String("id_counter")));
+    assert(content.attributes().contains(QLatin1String("sites_count")));
+
+    id_count = content.attribute(QLatin1String("id_counter")).toLongLong();
+    size_t count = content.attribute(QLatin1String("sites_count")).toLongLong();
+
+    sites.reserve(count);
+    const QDomNodeList& sitesElems = content.elementsByTagName(QLatin1String("WatchedSite"));
+    for (size_t i = 0; i < count; i++)
+    {
+        const QDomElement& siteElem = sitesElems.item(i).toElement();
+
+        WatchedSite site;
+
+        assert(siteElem.attributes().contains(QLatin1String("id")));
+        assert(siteElem.attributes().contains(QLatin1String("probes_count")));
+
+        site.id = siteElem.attribute(QLatin1String("id")).toLongLong();
+        size_t probesCount = (size_t)siteElem.attribute(QLatin1String("probes_count")).toLongLong();
+
+        assert(siteElem.firstChildElement(QLatin1String("Url")).isNull() == false);
+        site.url = QUrl(siteElem.firstChildElement(QLatin1String("Url")).text());
+
+        assert(siteElem.firstChildElement(QLatin1String("Title")).isNull() == false);
+        site.title = siteElem.firstChildElement(QLatin1String("Title")).text();
+
+        assert(siteElem.firstChildElement(QLatin1String("Query")).isNull() == false);
+        site.jsQuery = siteElem.firstChildElement(QLatin1String("Query")).text();
+
+        assert(siteElem.firstChildElement(QLatin1String("Interval")).isNull() == false);
+        site.updateIntervalMs = siteElem.firstChildElement(QLatin1String("Interval")).text().toLongLong();
+
+        const QDomNodeList& probesElems = siteElem.elementsByTagName(QLatin1String("WatchedSiteProbe"));
+        for (size_t j = 0; j < probesCount; j++)
+        {
+            const QDomElement& probeElem = probesElems.item(j).toElement();
+
+            WatchedSiteProbe probe;
+
+            assert(probeElem.firstChildElement(QLatin1String("AccessTime")).isNull() == false);
+            probe.accessTime = probeElem.firstChildElement(QLatin1String("AccessTime")).text().toLongLong();
+
+            assert(probeElem.firstChildElement(QLatin1String("Text")).isNull() == false);
+            probe.text = probeElem.firstChildElement(QLatin1String("Text")).text();
+
+            assert(probeElem.firstChildElement(QLatin1String("Hash")).isNull() == false);
+            probe.hash = QByteArray::fromBase64(probeElem.firstChildElement(QLatin1String("Hash")).text().toLatin1());
+
+            site.probes.push_back(probe);
+        }
+
+        sites.push_back(site);
+    }
+
+    // Check need to update after loading
+    for (const WatchedSite& site: sites)
+        updateSite(site.id);
+
+    /*
     QXmlStreamReader reader(device);
     reader.readNextStartElement();
 
-    assert(reader.name() == QLatin1String("WebWatcher"));
+    reader.name() == );
 
     id_count = reader.attributes().value(QLatin1String("id_counter")).toLongLong();
     size_t count = reader.attributes().value(QLatin1String("sites_count")).toLongLong();
@@ -243,6 +300,7 @@ void WebWatcher::load(QIODevice* device)
     // Check need to update after loadingы
     for (const WatchedSite& site: sites)
         updateSite(site.id);
+    */
 }
 
 QList<int64_t> WebWatcher::ids()
@@ -263,4 +321,11 @@ void WebWatcher::doSiteUpdate(std::vector<WatchedSite>::iterator iter)
 
     processed[id] = QDateTime::currentMSecsSinceEpoch();
     QTimer::singleShot(iter->updateIntervalMs, this, [id, this](){this->updateSite(id);});
+}
+
+void WebWatcher::addNamedTextNode(QDomElement& elem, QDomDocument& doc, QString name, QString text)
+{
+    QDomElement tmp = doc.createElement(name);
+    tmp.appendChild(doc.createTextNode(text));
+    elem.appendChild(tmp);
 }

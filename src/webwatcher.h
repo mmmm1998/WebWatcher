@@ -12,6 +12,8 @@
 #include <QByteArray>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QDomDocument>
+#include <QDomElement>
 
 class QWebEnginePage;
 
@@ -44,8 +46,8 @@ class WebWatcher: public QObject
     std::optional<WatchedSite> siteById(std::int64_t id);
     QList<std::int64_t> ids();
 
-    void save(QIODevice* device);
-    void load(QIODevice* device);
+    QDomElement toXml(QDomDocument& doc);
+    void fromXml(const QDomElement& content);
 
   signals:
     void siteChanged(std::int64_t id);
@@ -60,6 +62,7 @@ class WebWatcher: public QObject
 
   private:
     void doSiteUpdate(std::vector<WatchedSite>::iterator iter);
+    void addNamedTextNode(QDomElement& elem, QDomDocument& doc, QString name, QString text);
 
   private:
     std::vector<WatchedSite> sites;

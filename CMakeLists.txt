@@ -12,8 +12,8 @@ set (CMAKE_AUTOUIC ON)
 find_package(Qt5 5.6.0 CONFIG REQUIRED
     Widgets
     Network
-    Xml
     WebEngineWidgets
+    Xml
 )
 
 set (WEBSCANNER_HEADERS

@@ -13,6 +13,8 @@
 #include <QListView>
 #include <QMap>
 #include <QSystemTrayIcon>
+#include <QDomDocument>
+#include <QDomElement>
 
 #include <QDebug>
 
@@ -194,7 +196,10 @@ void MainWindow::save()
     QFile file(path + QLatin1String("/webwatcher.xml"));
     if (file.open(QIODevice::WriteOnly))
     {
-        watcher.save(&file);
+        QDomDocument doc;
+        const QDomElement& watcherElem = watcher.toXml(doc);
+        doc.appendChild(watcherElem);
+        file.write(doc.toByteArray(4)); // xml indent == 4
         file.close();
     }
 }
@@ -206,7 +211,9 @@ void MainWindow::load()
 
     if (file.open(QIODevice::ReadOnly))
     {
-        watcher.load(&file);
+        QDomDocument doc;
+        doc.setContent(file.readAll());
+        watcher.fromXml(doc.firstChildElement(QLatin1String("WebWatcher")));
         file.close();
 
         QList<int64_t> ids = watcher.ids();
@@ -214,7 +221,7 @@ void MainWindow::load()
         for (int64_t id : ids)
         {
             optional<WatchedSite> site = watcher.siteById(id);
-            QStandardItem* entry = new QStandardItem(site->title);
+            QStandardItem* entry = new QStandardItem((site->title.isEmpty() ? site->url.toString() : site->title));
             entry->setData((qint64)id, ID);
 
             subsModel.appendRow(entry);
