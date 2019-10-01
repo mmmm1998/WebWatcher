@@ -50,6 +50,7 @@ class WebWatcher: public QObject
     void fromXml(const QDomElement& content);
 
   signals:
+    void siteAcessed(std::int64_t id);
     void siteChanged(std::int64_t id);
 
   public slots:

@@ -28,6 +28,7 @@ class MainWindow : public QMainWindow
     void handleSubsDoubleClick(const QModelIndex &index);
     void handleSubsEdit();
     void handleSiteChanged(std::int64_t id);
+    void handleSiteAcessed(std::int64_t id);
 
     void save();
     void load();

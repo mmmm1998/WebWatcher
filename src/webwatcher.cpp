@@ -124,10 +124,14 @@ void WebWatcher::handleJsCallback(int64_t id, QVariant callbackResult, QWebEngin
         if (oldHash != hash)
         {
             iter->probes.push_back(newProbe);
+            emit siteAcessed(id);
             emit siteChanged(id);
         }
         else
+        {
             iter->probes.back().accessTime = currentMs;
+            emit siteAcessed(id);
+        }
     }
     processed.remove(id);
     page->deleteLater();

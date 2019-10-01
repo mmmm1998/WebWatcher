@@ -46,6 +46,7 @@ MainWindow::MainWindow (QWidget *parent) : QMainWindow (parent)
     probesModel.setHorizontalHeaderLabels({QObject::tr("Time"), QObject::tr("Value")});
     ui.requestHistoryView->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
 
+    connect(&watcher, &WebWatcher::siteAcessed, this, &MainWindow::handleSiteAcessed);
     connect(&watcher, &WebWatcher::siteChanged, this, &MainWindow::handleSiteChanged);
 
     const QStringList& units = ReadableDuration::supportedUnits();
@@ -188,6 +189,13 @@ void MainWindow::handleSiteChanged(int64_t id)
         }
     }
 
+}
+
+void MainWindow::handleSiteAcessed(std::int64_t id)
+{
+    optional<WatchedSite> site = watcher.siteById(id);
+    if (site)
+        updateProbesModel(*site);
 }
 
 void MainWindow::save()
