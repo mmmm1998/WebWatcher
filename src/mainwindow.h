@@ -41,6 +41,8 @@ class MainWindow : public QMainWindow
     void updateProbesModel(const WatchedSite& site);
     void increaseChangeCount();
     void decreaseChangeCount();
+    QDomElement toXml(QDomDocument& doc);
+    void fromXml(const QDomElement& content);
 
   private:
     Ui::MainWindow ui;

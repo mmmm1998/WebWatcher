@@ -177,10 +177,10 @@ void MainWindow::handleSiteChanged(int64_t id)
                 if (isNewChange)
                     increaseChangeCount();
 
+                /*
                 if (notify)
                     notify->deleteLater();
 
-                /*
                 notify = new Notificator(*site);
                 notify->show();
                 */
@@ -205,9 +205,8 @@ void MainWindow::save()
     if (file.open(QIODevice::WriteOnly))
     {
         QDomDocument doc;
-        const QDomElement& watcherElem = watcher.toXml(doc);
-        doc.appendChild(watcherElem);
-        file.write(doc.toByteArray(4)); // xml indent == 4
+        doc.appendChild(toXml(doc));
+        file.write(doc.toByteArray(4)); // so, xml indent == 4
         file.close();
     }
 }
@@ -221,20 +220,10 @@ void MainWindow::load()
     {
         QDomDocument doc;
         doc.setContent(file.readAll());
-        watcher.fromXml(doc.firstChildElement(QLatin1String("WebWatcher")));
         file.close();
 
-        QList<int64_t> ids = watcher.ids();
-        qDebug() << file.fileName() << ids;
-        for (int64_t id : ids)
-        {
-            optional<WatchedSite> site = watcher.siteById(id);
-            QStandardItem* entry = new QStandardItem((site->title.isEmpty() ? site->url.toString() : site->title));
-            entry->setData((qint64)id, ID);
-
-            subsModel.appendRow(entry);
-        }
-
+        fromXml(doc.firstChildElement(QLatin1String("WebWatcherApplication")));
+        qDebug() << file.fileName() << watcher.ids().size();
     }
 }
 
@@ -306,4 +295,66 @@ void MainWindow::increaseChangeCount()
     // because we can do it only when it is really needed
     if (changesCount == 1)
         tray.setIcon(QIcon(QLatin1String(":/icons/updated.png")));
+}
+
+QDomElement MainWindow::toXml(QDomDocument& doc)
+{
+    QDomElement root = doc.createElement(QLatin1String("WebWatcherApplication"));
+
+    root.setAttribute(QLatin1String("changesCount"), changesCount);
+
+    for (int i = 0; i < subsModel.rowCount(); i++)
+    {
+        QStandardItem* item = subsModel.item(i);
+        if (item and item->font().bold() == true) // Item is marked, as changed
+        {
+            QDomElement idEl = doc.createElement(QLatin1String("WithChanges"));
+            idEl.appendChild(doc.createTextNode(QString::number(item->data(ID).toLongLong())));
+            root.appendChild(idEl);
+        }
+    }
+
+    root.appendChild(watcher.toXml(doc));
+
+    return root;
+}
+
+void MainWindow::fromXml(const QDomElement& content)
+{
+    assert(content.tagName() == QLatin1String("WebWatcherApplication"));
+
+    assert(content.attributes().contains(QLatin1String("changesCount")));
+    changesCount = content.attribute(QLatin1String("changesCount")).toInt();
+    if (changesCount > 0)
+        tray.setIcon(QIcon(QLatin1String(":/icons/updated.png")));
+
+    assert(content.firstChildElement(QLatin1String("WebWatcher")).isNull() == false);
+    watcher.fromXml(content.firstChildElement(QLatin1String("WebWatcher")));
+
+    QList<int64_t> ids = watcher.ids();
+    for (int64_t id : ids)
+    {
+        optional<WatchedSite> site = watcher.siteById(id);
+        QStandardItem* entry = new QStandardItem((site->title.isEmpty() ? site->url.toString() : site->title));
+        entry->setData((qint64)id, ID);
+
+        subsModel.appendRow(entry);
+    }
+
+    const QDomNodeList& idsElems = content.elementsByTagName(QLatin1String("WithChanges"));
+    for (size_t i = 0; i < idsElems.length(); i++)
+    {
+        const QDomElement& siteElem = idsElems.item(i).toElement();
+        int64_t changedId = siteElem.text().toLongLong();
+        for (int i = 0; i < subsModel.rowCount(); i++)
+        {
+            QStandardItem* item = subsModel.item(i);
+            if (item && item->data(ID).toLongLong() == changedId)
+            {
+                QFont font = item->font();
+                font.setBold(true);
+                item->setFont(font);
+            }
+        }
+    }
 }
