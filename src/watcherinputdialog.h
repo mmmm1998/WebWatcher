@@ -21,7 +21,7 @@ public:
     std::int64_t updateInterval();
 
     QUrl site();
-
+    QString title();
     QString jsQuery();
 
 private:

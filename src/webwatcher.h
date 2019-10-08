@@ -29,6 +29,7 @@ struct WatchedSite
     std::int64_t id;
     QUrl url;
     QString title;
+    bool isManualTitle;
     QString jsQuery;
     std::int64_t updateIntervalMs;
     std::vector<WatchedSiteProbe> probes;
@@ -40,8 +41,8 @@ class WebWatcher: public QObject
   public:
     explicit WebWatcher() = default;
 
-    std::int64_t addSite(QUrl url, QString jsQuery, std::int64_t updateIntervalMs);
-    bool setSite(std::int64_t id, QUrl url, QString jsQuery, std::int64_t updateIntervalMs);
+    std::int64_t addSite(QUrl url, QString title, QString jsQuery, std::int64_t updateIntervalMs);
+    bool setSite(std::int64_t id, QUrl url, QString title, bool isManualTitle, QString jsQuery, std::int64_t updateIntervalMs);
     void removeSite(std::int64_t id);
     std::optional<WatchedSite> siteById(std::int64_t id);
     QList<std::int64_t> ids();

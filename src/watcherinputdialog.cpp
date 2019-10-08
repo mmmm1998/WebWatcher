@@ -28,3 +28,8 @@ QString WatcherInputDialog::jsQuery()
 {
     return m_ui.queryEdit->text();
 }
+
+QString WatcherInputDialog::title()
+{
+    return m_ui.titleEdit->text();
+}

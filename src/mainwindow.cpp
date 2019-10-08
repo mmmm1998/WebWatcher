@@ -91,7 +91,7 @@ void MainWindow::handleAddSiteButton()
         QUrl url(dialog.site());
         if (url.isValid() && (url.scheme() == QLatin1String("http") || url.scheme() == QLatin1String("https")))
         {
-            addSite(url, dialog.jsQuery(), dialog.updateInterval());
+            addSite(url, dialog.title(), dialog.jsQuery(), dialog.updateInterval());
         }
         else
             QMessageBox::warning(this, tr("WebWatcher"), tr("%1 url is invalid, only web sites (http, https) are supported").arg(url.toString()));
@@ -137,14 +137,18 @@ void MainWindow::handleRemoveSiteButton()
         // Clear field for updating watched site information - because we have removed selected element just now
         ui.siteEdit->setText(QString());
         ui.queryEdit->setText(QString());
+        ui.titleEdit->setText(QString());
         ui.intervalUnitsCombobox->setCurrentIndex(0);
         ui.intervalEdit->setText(QString());
+        probesModel.removeRows(0, probesModel.rowCount());
+
+        ui.subsView->clearSelection();
     }
 }
 
-void MainWindow::addSite(const QUrl& url, QString xmlQuery, int64_t updateIntervalMs)
+void MainWindow::addSite(const QUrl& url, QString title, QString xmlQuery, int64_t updateIntervalMs)
 {
-    int id = watcher.addSite(url, xmlQuery, updateIntervalMs);
+    int id = watcher.addSite(url, title, xmlQuery, updateIntervalMs);
 
     QStandardItem* entry = new QStandardItem(url.toString());
     entry->setData(id);
@@ -163,10 +167,8 @@ void MainWindow::handleSiteChanged(int64_t id)
             optional<WatchedSite> site = watcher.siteById(id);
             if (site)
             {
-                item->setText(site->title);
+                item->setText(!site->title.isEmpty() ? site->title : site->url.toString());
                 qDebug() << "hande proble change from handel site" << site->probes.size();
-                updateProbesModel(*site);
-
 
                 QFont font = item->font();
 
@@ -176,6 +178,23 @@ void MainWindow::handleSiteChanged(int64_t id)
 
                 if (isNewChange)
                     increaseChangeCount();
+
+                QStandardItem *selectedItem = subsModel.itemFromIndex(ui.subsView->currentIndex());
+                if (selectedItem)
+                {
+                    int64_t view_id = selectedItem->data(ID).toLongLong();
+                    if (id == view_id)
+                    {
+                        updateProbesModel(*site);
+
+                        // handle situation, when
+                        // 1. we change url of the entry
+                        // 2. we see edit ui element for the entry in this moment
+                        // 2. our title isn't manual and changed with the url
+                        if (!site->isManualTitle)
+                            ui.titleEdit->setText(site->title);
+                    }
+                }
 
                 /*
                 if (notify)
@@ -195,7 +214,15 @@ void MainWindow::handleSiteAcessed(std::int64_t id)
 {
     optional<WatchedSite> site = watcher.siteById(id);
     if (site)
-        updateProbesModel(*site);
+    {
+        QStandardItem *selectedItem = subsModel.itemFromIndex(ui.subsView->currentIndex());
+        if (selectedItem)
+        {
+            int64_t view_id = selectedItem->data(ID).toLongLong();
+            if (id == view_id)
+                updateProbesModel(*site);
+        }
+    }
 }
 
 void MainWindow::save()
@@ -237,6 +264,7 @@ void MainWindow::handleSubsClick(const QModelIndex& index)
     {
         ui.siteEdit->setText(site->url.toString());
         ui.queryEdit->setText(site->jsQuery);
+        ui.titleEdit->setText(site->title);
 
         pair<int64_t, ReadableDuration::TimeUnit> format = ReadableDuration::toHumanReadable(site->updateIntervalMs);
         ui.intervalUnitsCombobox->setCurrentText(ReadableDuration::unitName(format.second));
@@ -260,12 +288,16 @@ void MainWindow::handleSubsEdit()
     {
         const QUrl& url = QUrl(ui.siteEdit->text());
         const QString& jsQuery = ui.queryEdit->text();
+        bool isManualTitle = ui.titleEdit->text() != site->title;
+        const QString& title = ui.titleEdit->text();
 
         const QString& unitName = ui.intervalUnitsCombobox->currentText();
         ReadableDuration::TimeUnit timeType = ReadableDuration::unitType(unitName);
         const int64_t updateIntervalMs =  ReadableDuration::toMs(ui.intervalEdit->text().toLongLong(), timeType);
 
-        watcher.setSite(id, url, jsQuery, updateIntervalMs);
+        watcher.setSite(id, url, title, isManualTitle, jsQuery, updateIntervalMs);
+
+        item->setText(title);
     }
 }
 

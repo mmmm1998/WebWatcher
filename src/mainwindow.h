@@ -37,7 +37,7 @@ class MainWindow : public QMainWindow
     void closeEvent(QCloseEvent *event);
 
   private:
-    void addSite(const QUrl& url, QString xmlQuery = QString(), std::int64_t updateIntervalMs = 10000);
+    void addSite(const QUrl& url, QString title, QString xmlQuery, std::int64_t updateIntervalMs);
     void updateProbesModel(const WatchedSite& site);
     void increaseChangeCount();
     void decreaseChangeCount();

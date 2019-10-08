@@ -11,12 +11,12 @@ using namespace std;
 
 static_assert(sizeof(qint64) == sizeof(int64_t));
 
-int64_t WebWatcher::addSite(QUrl url, QString xmlQuery, std::int64_t updateIntervalMs)
+int64_t WebWatcher::addSite(QUrl url, QString title, QString xmlQuery, std::int64_t updateIntervalMs)
 {
     if (!url.isValid())
         return -1;
 
-    WatchedSite site{id_count++, url, QString(), xmlQuery, updateIntervalMs}; // 0 last update time for garantee update
+    WatchedSite site{id_count++, url, title, title.isEmpty() == false, xmlQuery, updateIntervalMs}; // 0 last update time for garantee update
     qDebug() << "WebWatcher new site" << site.id;
     sites.push_back(site);
 
@@ -24,7 +24,7 @@ int64_t WebWatcher::addSite(QUrl url, QString xmlQuery, std::int64_t updateInter
     return site.id;
 }
 
-bool WebWatcher::setSite(int64_t id, QUrl url, QString jsQuery, std::int64_t updateIntervalMs)
+bool WebWatcher::setSite(int64_t id, QUrl url, QString title, bool isManualTitle, QString jsQuery, std::int64_t updateIntervalMs)
 {
     auto iter = std::find_if(sites.begin(), sites.end(), [id](const WatchedSite& site){return site.id == id;});
     if (iter != sites.end())
@@ -32,6 +32,8 @@ bool WebWatcher::setSite(int64_t id, QUrl url, QString jsQuery, std::int64_t upd
         bool needResetProbes = iter->url != url || iter->jsQuery != jsQuery;
 
         iter->url = url;
+        iter->title = title;
+        iter->isManualTitle = isManualTitle;
         iter->jsQuery = jsQuery;
         iter->updateIntervalMs = updateIntervalMs;
 
@@ -115,7 +117,8 @@ void WebWatcher::handleJsCallback(int64_t id, QVariant callbackResult, QWebEngin
         const QByteArray& hash = QCryptographicHash::hash(newData.toUtf8(), QCryptographicHash::Md5);
 
         // Update stored data
-        iter->title = page->title();
+        if (!iter->isManualTitle)
+            iter->title = page->title();
 
         int64_t currentMs = QDateTime::currentMSecsSinceEpoch();
         WatchedSiteProbe newProbe{currentMs, newData, hash};
@@ -153,7 +156,11 @@ QDomElement WebWatcher::toXml(QDomDocument& doc)
 
         addNamedTextNode(siteElem, doc, QLatin1String("Url"), site.url.toString());
 
-        addNamedTextNode(siteElem, doc, QLatin1String("Title"), site.title);
+        QDomElement titleElem = doc.createElement(QLatin1String("Title"));
+        titleElem.setAttribute(QLatin1String("manual"), site.isManualTitle ? "true" : "false");
+        titleElem.appendChild(doc.createTextNode(site.title));
+        siteElem.appendChild(titleElem);
+
         addNamedTextNode(siteElem, doc, QLatin1String("Query"), site.jsQuery);
         addNamedTextNode(siteElem, doc, QLatin1String("Interval"), QString::number(site.updateIntervalMs));
         for (const WatchedSiteProbe& probe: site.probes)
@@ -198,7 +205,10 @@ void WebWatcher::fromXml(const QDomElement& content)
         site.url = QUrl(siteElem.firstChildElement(QLatin1String("Url")).text());
 
         assert(siteElem.firstChildElement(QLatin1String("Title")).isNull() == false);
-        site.title = siteElem.firstChildElement(QLatin1String("Title")).text();
+        const QDomElement& titleEl = siteElem.firstChildElement(QLatin1String("Title"));
+        assert(titleEl.attributes().contains(QLatin1String("manual")));
+        site.title = titleEl.text();
+        site.isManualTitle = titleEl.attribute(QLatin1String("manual")) == QLatin1String("true");
 
         assert(siteElem.firstChildElement(QLatin1String("Query")).isNull() == false);
         site.jsQuery = siteElem.firstChildElement(QLatin1String("Query")).text();
@@ -232,79 +242,6 @@ void WebWatcher::fromXml(const QDomElement& content)
     for (const WatchedSite& site: sites)
         updateSite(site.id);
 
-    /*
-    QXmlStreamReader reader(device);
-    reader.readNextStartElement();
-
-    reader.name() == );
-
-    id_count = reader.attributes().value(QLatin1String("id_counter")).toLongLong();
-    size_t count = reader.attributes().value(QLatin1String("sites_count")).toLongLong();
-    reader.readNextStartElement();
-
-    sites.reserve(count);
-    for (size_t i = 0; i < count; i++)
-    {
-        assert(reader.name() == QLatin1String("WatchedSite"));
-
-        WatchedSite site;
-
-        assert(reader.attributes().hasAttribute(QLatin1String("id")));
-        site.id = reader.attributes().value(QLatin1String("id")).toLongLong();
-        size_t probesCount = (size_t)reader.attributes().value(QLatin1String("probes_count")).toLongLong();
-        reader.readNextStartElement();
-
-        assert(reader.name() == QLatin1String("Url"));
-        site.url = QUrl(reader.readElementText());
-        reader.readNextStartElement();
-
-        assert(reader.name() == QLatin1String("Title"));
-        site.title = reader.readElementText();
-        reader.readNextStartElement();
-
-        assert(reader.name() == QLatin1String("Query"));
-        site.jsQuery = reader.readElementText();
-        reader.readNextStartElement();
-
-        assert(reader.name() == QLatin1String("Interval"));
-        site.updateIntervalMs = reader.readElementText().toLongLong();
-        reader.readNextStartElement();
-
-        for (size_t j = 0; j < probesCount; j++)
-        {
-            assert(reader.name() == QLatin1String("WatchedSiteProbe"));
-            reader.readNextStartElement();
-
-            WatchedSiteProbe probe;
-
-            assert(reader.name() == QLatin1String("AccessTime"));
-            probe.accessTime = reader.readElementText().toLongLong();
-            reader.readNextStartElement();
-
-            assert(reader.name() == QLatin1String("Text"));
-            probe.text = reader.readElementText();
-            reader.readNextStartElement();
-
-            assert(reader.name() == QLatin1String("Hash"));
-            probe.hash = QByteArray::fromBase64(reader.readElementText().toLatin1());
-            reader.readNextStartElement();
-
-            assert(reader.name() == QLatin1String("WatchedSiteProbe"));
-            reader.readNextStartElement();
-
-            site.probes.push_back(probe);
-        }
-
-        // HACK? Needs this, I don't understand, why
-        reader.readNextStartElement();
-
-        sites.push_back(site);
-    }
-
-    // Check need to update after loadingы
-    for (const WatchedSite& site: sites)
-        updateSite(site.id);
-    */
 }
 
 QList<int64_t> WebWatcher::ids()
