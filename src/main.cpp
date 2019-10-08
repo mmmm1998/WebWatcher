@@ -20,6 +20,7 @@ int main (int argc, char *argv[]) {
     parser.process(app);
 
     MainWindow w;
+    w.setWindowIcon(QIcon(QLatin1String(":/icons/watch.png")));
 
     if (parser.isSet(trayOption) == false)
         w.show();
