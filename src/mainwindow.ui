@@ -48,6 +48,12 @@
          <layout class="QHBoxLayout" name="horizontalLayout">
           <item>
            <widget class="QPushButton" name="addSiteButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="text">
              <string>+</string>
             </property>
@@ -55,8 +61,53 @@
           </item>
           <item>
            <widget class="QPushButton" name="removeSiteButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="text">
              <string>-</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="ignoreSiteUpdateButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>i</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="toggleSiteIgnorableButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>[i]</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="onOffUpdateButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>⏻</string>
             </property>
            </widget>
           </item>
@@ -104,6 +155,16 @@
          </item>
          <item row="1" column="1">
           <widget class="QLineEdit" name="siteEdit"/>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="titleLabel">
+           <property name="text">
+            <string>Title (optional)</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QLineEdit" name="titleEdit"/>
          </item>
          <item row="3" column="0">
           <widget class="QLabel" name="queryLabel">
@@ -157,16 +218,6 @@
             <string>Apply</string>
            </property>
           </widget>
-         </item>
-         <item row="2" column="0">
-          <widget class="QLabel" name="titleLabel">
-           <property name="text">
-            <string>Title (optional)</string>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="1">
-          <widget class="QLineEdit" name="titleEdit"/>
          </item>
         </layout>
        </widget>
@@ -278,6 +329,54 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>ignoreSiteUpdateButton</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>handleIgnoreSiteUpdateButton()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>336</x>
+     <y>32</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>593</x>
+     <y>421</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>toggleSiteIgnorableButton</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>handleToggleSiteIgnorableButton()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>376</x>
+     <y>32</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>593</x>
+     <y>421</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>onOffUpdateButton</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>handleOnOffUpdateButton()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>481</x>
+     <y>32</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>593</x>
+     <y>421</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>handleAddSiteButton()</slot>
@@ -285,5 +384,8 @@
   <slot>handleSubsDoubleClick(QModelIndex)</slot>
   <slot>handleSubsClick(QModelIndex)</slot>
   <slot>handleSubsEdit()</slot>
+  <slot>handleIgnoreSiteUpdateButton()</slot>
+  <slot>handleToggleSiteIgnorableButton()</slot>
+  <slot>handleOnOffUpdateButton()</slot>
  </slots>
 </ui>

@@ -20,7 +20,6 @@
 
 #include "timeunit.h"
 #include "watcherinputdialog.h"
-#include "notificator.h"
 
 using namespace std;
 
@@ -44,7 +43,8 @@ MainWindow::MainWindow (QWidget *parent) : QMainWindow (parent)
     ui.requestHistoryView->setModel(&probesModel);
     ui.requestHistoryView->setEditTriggers(QAbstractItemView::NoEditTriggers);
     probesModel.setHorizontalHeaderLabels({QObject::tr("Time"), QObject::tr("Value")});
-    ui.requestHistoryView->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    ui.requestHistoryView->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    ui.requestHistoryView->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
 
     connect(&watcher, &WebWatcher::siteAcessed, this, &MainWindow::handleSiteAcessed);
     connect(&watcher, &WebWatcher::siteChanged, this, &MainWindow::handleSiteChanged);
@@ -102,18 +102,16 @@ void MainWindow::handleSubsDoubleClick(const QModelIndex& index)
 {
     QStandardItem *item = subsModel.itemFromIndex(index);
 
+    // Check, if marked as changed, and disable marking, if it is true
+    bool updated = item->data(ST_Updated).toBool();
+    if (updated)
+    {
+        setUpdated(item, false);
+    }
+
     int64_t id = item->data(ID).toLongLong();
     optional<WatchedSite> site = watcher.siteById(id);
     const QUrl& url = site->url;
-
-    QFont font = item->font();
-
-    if (font.bold() == true)
-        decreaseChangeCount();
-
-    font.setBold(false);
-    item->setFont(font);
-
     QDesktopServices::openUrl(url);
 }
 
@@ -124,9 +122,8 @@ void MainWindow::handleRemoveSiteButton()
     {
         QStandardItem *item = subsModel.itemFromIndex(index);
 
-        QFont font = item->font();
-        qDebug() << "font" << font.bold();
-        if (font.bold() == true)
+        bool updated = item->data(ST_Updated).toBool();
+        if (updated)
             decreaseChangeCount();
 
         int64_t id = item->data(ID).toLongLong();
@@ -146,12 +143,82 @@ void MainWindow::handleRemoveSiteButton()
     }
 }
 
+void MainWindow::handleIgnoreSiteUpdateButton()
+{
+    QModelIndex index = ui.subsView->currentIndex();
+    if (index.isValid())
+    {
+        QStandardItem *item = subsModel.itemFromIndex(index);
+
+        bool updated = item->data(ST_Updated).toBool();
+        if (updated)
+        {
+            setUpdated(item, false);
+        }
+    }
+}
+
+void MainWindow::handleToggleSiteIgnorableButton()
+{
+    QModelIndex index = ui.subsView->currentIndex();
+    if (index.isValid())
+    {
+        QStandardItem *item = subsModel.itemFromIndex(index);
+
+        bool ignorable = !item->data(ST_Ignorable).toBool();
+        setIgnorable(item, ignorable);
+
+        if (ignorable)
+        {
+            bool updated = item->data(ST_Updated).toBool();
+            if (updated)
+            {
+                setUpdated(item, false);
+            }
+        }
+    }
+}
+
+void MainWindow::handleOnOffUpdateButton()
+{
+    QModelIndex index = ui.subsView->currentIndex();
+    if (index.isValid())
+    {
+        QStandardItem *item = subsModel.itemFromIndex(index);
+
+        int64_t id = item->data(ID).toLongLong();
+        optional<WatchedSite> site = watcher.siteById(id);
+        if (site)
+        {
+            //change disabled value
+            site->isDisabled = !site->isDisabled;
+            watcher.updateSite(*site);
+
+            qDebug() << "site->isDisabled" << site->isDisabled;
+
+            setDisabled(item, site->isDisabled);
+
+            if (site->isDisabled)
+            {
+                bool updated = item->data(ST_Updated).toBool();
+                if (updated)
+                {
+                    setUpdated(item, false);
+                }
+            }
+        }
+    }
+}
+
 void MainWindow::addSite(const QUrl& url, QString title, QString xmlQuery, int64_t updateIntervalMs)
 {
-    int id = watcher.addSite(url, title, xmlQuery, updateIntervalMs);
+    int64_t id = watcher.addSite(url, title, xmlQuery, updateIntervalMs);
 
     QStandardItem* entry = new QStandardItem(url.toString());
-    entry->setData(id);
+    entry->setData(QVariant((qlonglong)id), ID);
+    setUpdated(entry, false);
+    setIgnorable(entry, false);
+
 
     subsModel.appendRow(entry);
 }
@@ -167,17 +234,13 @@ void MainWindow::handleSiteChanged(int64_t id)
             optional<WatchedSite> site = watcher.siteById(id);
             if (site)
             {
-                item->setText(!site->title.isEmpty() ? site->title : site->url.toString());
+                item->setText(itemName(*site));
                 qDebug() << "hande proble change from handel site" << site->probes.size();
 
-                QFont font = item->font();
-
-                bool isNewChange = font.bold() == false;
-                font.setBold(true);
-                item->setFont(font);
-
-                if (isNewChange)
-                    increaseChangeCount();
+                if (!item->data(ST_Ignorable).toBool())
+                {
+                    setUpdated(item, true);
+                }
 
                 QStandardItem *selectedItem = subsModel.itemFromIndex(ui.subsView->currentIndex());
                 if (selectedItem)
@@ -190,19 +253,11 @@ void MainWindow::handleSiteChanged(int64_t id)
                         // handle situation, when
                         // 1. we change url of the entry
                         // 2. we see edit ui element for the entry in this moment
-                        // 2. our title isn't manual and changed with the url
+                        // 3. our title isn't manual and changed with the url
                         if (!site->isManualTitle)
                             ui.titleEdit->setText(site->title);
                     }
                 }
-
-                /*
-                if (notify)
-                    notify->deleteLater();
-
-                notify = new Notificator(*site);
-                notify->show();
-                */
             }
             return;
         }
@@ -295,7 +350,9 @@ void MainWindow::handleSubsEdit()
         ReadableDuration::TimeUnit timeType = ReadableDuration::unitType(unitName);
         const int64_t updateIntervalMs =  ReadableDuration::toMs(ui.intervalEdit->text().toLongLong(), timeType);
 
-        watcher.setSite(id, url, title, isManualTitle, jsQuery, updateIntervalMs);
+        bool isDisabled = site->isDisabled;
+
+        watcher.setSite(id, url, title, isManualTitle, isDisabled, jsQuery, updateIntervalMs);
 
         item->setText(title);
     }
@@ -309,6 +366,8 @@ void MainWindow::updateProbesModel(const WatchedSite& site)
         QString time = QDateTime::fromMSecsSinceEpoch(probe.accessTime).toString();
         probesModel.appendRow({new QStandardItem(time), new QStandardItem(probe.text)});
     }
+    ui.requestHistoryView->resizeColumnsToContents();
+    ui.requestHistoryView->resizeRowsToContents();
 }
 
 void MainWindow::decreaseChangeCount()
@@ -338,12 +397,19 @@ QDomElement MainWindow::toXml(QDomDocument& doc)
     for (int i = 0; i < subsModel.rowCount(); i++)
     {
         QStandardItem* item = subsModel.item(i);
-        if (item and item->font().bold() == true) // Item is marked, as changed
+        if (item && item->data(ST_Updated).toBool()) // Item marked as changed
         {
             QDomElement idEl = doc.createElement(QLatin1String("WithChanges"));
             idEl.appendChild(doc.createTextNode(QString::number(item->data(ID).toLongLong())));
             root.appendChild(idEl);
         }
+        if (item && item->data(ST_Ignorable).toBool())
+        {
+            QDomElement idEl = doc.createElement(QLatin1String("Ignorable"));
+            idEl.appendChild(doc.createTextNode(QString::number(item->data(ID).toLongLong())));
+            root.appendChild(idEl);
+        }
+
     }
 
     root.appendChild(watcher.toXml(doc));
@@ -369,24 +435,78 @@ void MainWindow::fromXml(const QDomElement& content)
         optional<WatchedSite> site = watcher.siteById(id);
         QStandardItem* entry = new QStandardItem((site->title.isEmpty() ? site->url.toString() : site->title));
         entry->setData((qint64)id, ID);
+        setUpdated(entry, false);
+        setIgnorable(entry, false);
+        setDisabled(entry, site->isDisabled);
 
         subsModel.appendRow(entry);
     }
 
-    const QDomNodeList& idsElems = content.elementsByTagName(QLatin1String("WithChanges"));
-    for (size_t i = 0; i < idsElems.length(); i++)
+
+
+    for (auto [tagname, actor]: {tuple{"WithChanges", &MainWindow::setUpdated}, tuple{"Ignorable", &MainWindow::setIgnorable}})
     {
-        const QDomElement& siteElem = idsElems.item(i).toElement();
-        int64_t changedId = siteElem.text().toLongLong();
-        for (int i = 0; i < subsModel.rowCount(); i++)
+        const QDomNodeList& idsElems = content.elementsByTagName(QLatin1String(tagname));
+        for (size_t i = 0; i < idsElems.length(); i++)
         {
-            QStandardItem* item = subsModel.item(i);
-            if (item && item->data(ID).toLongLong() == changedId)
+            const QDomElement& siteElem = idsElems.item(i).toElement();
+            int64_t saveId = siteElem.text().toLongLong();
+            for (int i = 0; i < subsModel.rowCount(); i++)
             {
-                QFont font = item->font();
-                font.setBold(true);
-                item->setFont(font);
+                QStandardItem* item = subsModel.item(i);
+                if (item && item->data(ID).toLongLong() == saveId)
+                {
+                    (this->*actor)(item, true);
+                }
             }
         }
     }
+}
+
+void MainWindow::setUpdated(QStandardItem* item, bool value)
+{
+    if (value && item->data(ST_Updated).toBool() == false)
+        increaseChangeCount();
+    else if (value == false && item->data(ST_Updated).toBool())
+        decreaseChangeCount();
+
+    item->setData(value, ST_Updated);
+
+    // Visual information about "Updated" state
+    QFont font = item->font();
+    font.setBold(value);
+    item->setFont(font);
+}
+
+void MainWindow::setIgnorable(QStandardItem* item, bool value)
+{
+    item->setData(value, ST_Ignorable);
+
+    // Visual information about "Ignorable" state
+    QFont font = item->font();
+    font.setItalic(value);
+    item->setFont(font);
+}
+
+void MainWindow::setDisabled(QStandardItem* item, bool value)
+{
+    // Visual information about "Disabled" state
+    QBrush back = item->background();
+    if (value)
+    {
+        back.setColor(Qt::lightGray);
+        back.setStyle(Qt::SolidPattern);
+    }
+    else
+    {
+        back.setColor(Qt::white);
+        back.setStyle(Qt::NoBrush);
+    }
+    item->setBackground(back);
+}
+
+QString MainWindow::itemName(const WatchedSite& site)
+{
+    QString name = !site.title.isEmpty() ? site.title : site.url.toString();
+    return name;
 }

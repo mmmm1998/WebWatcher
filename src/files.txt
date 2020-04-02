@@ -1,9 +1,0 @@
-mainwindow.h
-timeunit.h
-watcherinputdialog.h
-webwatcher.h
-main.cpp
-mainwindow.cpp
-timeunit.cpp
-watcherinputdialog.cpp
-webwatcher.cpp

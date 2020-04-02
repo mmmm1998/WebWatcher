@@ -12,7 +12,7 @@
 
 
 class QCloseEvent;
-class Notificator;
+class QStandardItem;
 
 class MainWindow : public QMainWindow
 {
@@ -24,6 +24,9 @@ class MainWindow : public QMainWindow
     void handleTrayActivation(QSystemTrayIcon::ActivationReason reason);
     void handleAddSiteButton();
     void handleRemoveSiteButton();
+    void handleIgnoreSiteUpdateButton();
+    void handleToggleSiteIgnorableButton();
+    void handleOnOffUpdateButton();
     void handleSubsClick(const QModelIndex &index);
     void handleSubsDoubleClick(const QModelIndex &index);
     void handleSubsEdit();
@@ -43,6 +46,12 @@ class MainWindow : public QMainWindow
     void decreaseChangeCount();
     QDomElement toXml(QDomDocument& doc);
     void fromXml(const QDomElement& content);
+    void setUpdated(QStandardItem* item, bool value);
+    void setIgnorable(QStandardItem* item, bool value);
+    void setDisabled(QStandardItem* item, bool value);
+
+  private:
+    static QString itemName(const WatchedSite& site);
 
   private:
     Ui::MainWindow ui;
@@ -51,10 +60,11 @@ class MainWindow : public QMainWindow
     QStandardItemModel probesModel;
     WebWatcher watcher;
     int changesCount{0};
-    Notificator* notify{nullptr};
 
   private:
     static const int ID = Qt::UserRole + 1;
+    static const int ST_Updated = Qt::UserRole + 2;
+    static const int ST_Ignorable = Qt::UserRole + 3;
 };
 
 #endif // MAINWINDOW_H

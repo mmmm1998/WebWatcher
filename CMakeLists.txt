@@ -21,7 +21,6 @@ set (WEBSCANNER_HEADERS
     src/webwatcher.h
     src/timeunit.h
     src/watcherinputdialog.h
-    src/notificator.h
 )
 
 set (WEBSCANNER_SOURCES
@@ -29,7 +28,6 @@ set (WEBSCANNER_SOURCES
     src/webwatcher.cpp
     src/watcherinputdialog.cpp
     src/timeunit.cpp
-    src/notificator.cpp
     src/main.cpp
 )
 
@@ -41,7 +39,6 @@ add_executable (webwatcher
     ${WEBSCANNER_SOURCES}
     src/mainwindow.ui
     src/watcherinputdialog.ui
-    src/notification.ui
     resources.qrc
 )
 target_link_libraries (webwatcher PUBLIC

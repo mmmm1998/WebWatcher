@@ -16,7 +16,7 @@ int64_t WebWatcher::addSite(QUrl url, QString title, QString xmlQuery, std::int6
     if (!url.isValid())
         return -1;
 
-    WatchedSite site{id_count++, url, title, title.isEmpty() == false, xmlQuery, updateIntervalMs}; // 0 last update time for garantee update
+    WatchedSite site{id_count++, url, title, title.isEmpty() == false, false, xmlQuery, updateIntervalMs};
     qDebug() << "WebWatcher new site" << site.id;
     sites.push_back(site);
 
@@ -24,7 +24,7 @@ int64_t WebWatcher::addSite(QUrl url, QString title, QString xmlQuery, std::int6
     return site.id;
 }
 
-bool WebWatcher::setSite(int64_t id, QUrl url, QString title, bool isManualTitle, QString jsQuery, std::int64_t updateIntervalMs)
+bool WebWatcher::setSite(int64_t id, QUrl url, QString title, bool isManualTitle, bool isDisabled, QString jsQuery, std::int64_t updateIntervalMs)
 {
     auto iter = std::find_if(sites.begin(), sites.end(), [id](const WatchedSite& site){return site.id == id;});
     if (iter != sites.end())
@@ -34,6 +34,7 @@ bool WebWatcher::setSite(int64_t id, QUrl url, QString title, bool isManualTitle
         iter->url = url;
         iter->title = title;
         iter->isManualTitle = isManualTitle;
+        iter->isDisabled = isDisabled;
         iter->jsQuery = jsQuery;
         iter->updateIntervalMs = updateIntervalMs;
 
@@ -46,6 +47,23 @@ bool WebWatcher::setSite(int64_t id, QUrl url, QString title, bool isManualTitle
         return false;
 }
 
+bool WebWatcher::updateSite(const WatchedSite& site)
+{
+    int64_t id = site.id;
+    auto iter = std::find_if(sites.begin(), sites.end(), [id](const WatchedSite& iter_site){return iter_site.id == id;});
+    if (iter != sites.end())
+    {
+        bool needResetProbes = iter->url != site.url || iter->jsQuery != site.jsQuery;
+
+        *iter = site;
+         if (needResetProbes)
+            iter->probes.clear();
+        updateSite(id);
+        return true;
+    }
+    else
+        return false;
+}
 
 void WebWatcher::removeSite(int64_t id)
 {
@@ -151,8 +169,10 @@ QDomElement WebWatcher::toXml(QDomDocument& doc)
     {
         QDomElement siteElem = doc.createElement(QLatin1String("WatchedSite"));
 
+
         siteElem.setAttribute(QLatin1String("id"), QString::number(site.id));
         siteElem.setAttribute(QLatin1String("probes_count"), QString::number(site.probes.size()));
+        siteElem.setAttribute(QLatin1String("disabled"), site.isDisabled ? "true" : "false");
 
         addNamedTextNode(siteElem, doc, QLatin1String("Url"), site.url.toString());
 
@@ -197,9 +217,11 @@ void WebWatcher::fromXml(const QDomElement& content)
 
         assert(siteElem.attributes().contains(QLatin1String("id")));
         assert(siteElem.attributes().contains(QLatin1String("probes_count")));
+        assert(siteElem.attributes().contains(QLatin1String("disabled")));
 
         site.id = siteElem.attribute(QLatin1String("id")).toLongLong();
         size_t probesCount = (size_t)siteElem.attribute(QLatin1String("probes_count")).toLongLong();
+        site.isDisabled = siteElem.attribute(QLatin1String("disabled")) == QLatin1String("true");
 
         assert(siteElem.firstChildElement(QLatin1String("Url")).isNull() == false);
         site.url = QUrl(siteElem.firstChildElement(QLatin1String("Url")).text());
@@ -255,12 +277,15 @@ QList<int64_t> WebWatcher::ids()
 void WebWatcher::doSiteUpdate(std::vector<WatchedSite>::iterator iter)
 {
     const int64_t id = iter->id;
-    qDebug() << "request web update for" << id << iter->title;
-    QWebEnginePage* page = new QWebEnginePage(this);
-    page->load(iter->url);
-    connect(page, &QWebEnginePage::loadFinished, [this, id, page](bool ok){this->handlePageLoad(id, ok, page);});
+    if (!iter->isDisabled)
+    {
+        qDebug() << "request web update for" << id << iter->title;
+        QWebEnginePage* page = new QWebEnginePage(this);
+        page->load(iter->url);
+        connect(page, &QWebEnginePage::loadFinished, [this, id, page](bool ok){this->handlePageLoad(id, ok, page);});
 
-    processed[id] = QDateTime::currentMSecsSinceEpoch();
+        processed[id] = QDateTime::currentMSecsSinceEpoch();
+    }
     QTimer::singleShot(iter->updateIntervalMs, this, [id, this](){this->updateSite(id);});
 }
 
