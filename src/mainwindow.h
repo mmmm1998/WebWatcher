@@ -52,6 +52,7 @@ class MainWindow : public QMainWindow
 
   private:
     static QString itemName(const WatchedSite& site);
+    QStandardItem* findItemById(int64_t id);
 
   private:
     Ui::MainWindow ui;

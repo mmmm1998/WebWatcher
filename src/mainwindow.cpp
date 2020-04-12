@@ -226,43 +226,39 @@ void MainWindow::addSite(const QUrl& url, QString title, QString xmlQuery, int64
 void MainWindow::handleSiteChanged(int64_t id)
 {
     qDebug() << "handleSiteChanged" << id;
-    for (int i = 0; i < subsModel.rowCount(); i++)
+    QStandardItem* siteItem = findItemById(id);
+    if (siteItem)
     {
-        QStandardItem* item = subsModel.item(i);
-        if (item && item->data(ID).toLongLong() == id)
+        optional<WatchedSite> site = watcher.siteById(id);
+        if (site)
         {
-            optional<WatchedSite> site = watcher.siteById(id);
-            if (site)
+            siteItem->setText(itemName(*site));
+            qDebug() << "handle probe change from the site" << site->probes.size();
+
+            if (!siteItem->data(ST_Ignorable).toBool())
             {
-                item->setText(itemName(*site));
-                qDebug() << "hande proble change from handel site" << site->probes.size();
+                setUpdated(siteItem, true);
+            }
 
-                if (!item->data(ST_Ignorable).toBool())
+            QStandardItem *selectedItem = subsModel.itemFromIndex(ui.subsView->currentIndex());
+            if (selectedItem)
+            {
+                int64_t view_id = selectedItem->data(ID).toLongLong();
+                if (id == view_id)
                 {
-                    setUpdated(item, true);
-                }
+                    updateProbesModel(*site);
 
-                QStandardItem *selectedItem = subsModel.itemFromIndex(ui.subsView->currentIndex());
-                if (selectedItem)
-                {
-                    int64_t view_id = selectedItem->data(ID).toLongLong();
-                    if (id == view_id)
-                    {
-                        updateProbesModel(*site);
-
-                        // handle situation, when
-                        // 1. we change url of the entry
-                        // 2. we see edit ui element for the entry in this moment
-                        // 3. our title isn't manual and changed with the url
-                        if (!site->isManualTitle)
-                            ui.titleEdit->setText(site->title);
-                    }
+                    // handle situation, when
+                    // 1. we change url of the entry
+                    // 2. we see edit ui element for the entry in this moment
+                    // 3. our title isn't manual and changed with the url
+                    if (!site->isManualTitle)
+                        ui.titleEdit->setText(site->title);
                 }
             }
-            return;
         }
+        return;
     }
-
 }
 
 void MainWindow::handleSiteAcessed(std::int64_t id)
@@ -277,6 +273,10 @@ void MainWindow::handleSiteAcessed(std::int64_t id)
             if (id == view_id)
                 updateProbesModel(*site);
         }
+
+        QStandardItem* siteItem = findItemById(id);
+        if (siteItem)
+            siteItem->setText(itemName(*site));
     }
 }
 
@@ -341,20 +341,21 @@ void MainWindow::handleSubsEdit()
     optional<WatchedSite> site = watcher.siteById(id);
     if (site)
     {
-        const QUrl& url = QUrl(ui.siteEdit->text());
-        const QString& jsQuery = ui.queryEdit->text();
-        bool isManualTitle = ui.titleEdit->text() != site->title;
-        const QString& title = ui.titleEdit->text();
+        site->url = QUrl(ui.siteEdit->text());
+        if (site->isManualTitle)
+            site->isManualTitle = !ui.titleEdit->text().isEmpty();
+        else
+            site->isManualTitle = ui.titleEdit->text() != site->title;
+        site->title = ui.titleEdit->text();
+        site->jsQuery = ui.queryEdit->text();
 
         const QString& unitName = ui.intervalUnitsCombobox->currentText();
         ReadableDuration::TimeUnit timeType = ReadableDuration::unitType(unitName);
-        const int64_t updateIntervalMs =  ReadableDuration::toMs(ui.intervalEdit->text().toLongLong(), timeType);
+        site->updateIntervalMs = ReadableDuration::toMs(ui.intervalEdit->text().toLongLong(), timeType);
 
-        bool isDisabled = site->isDisabled;
+        watcher.updateSite(*site);
 
-        watcher.setSite(id, url, title, isManualTitle, isDisabled, jsQuery, updateIntervalMs);
-
-        item->setText(title);
+        item->setText(itemName(*site));
     }
 }
 
@@ -509,4 +510,15 @@ QString MainWindow::itemName(const WatchedSite& site)
 {
     QString name = !site.title.isEmpty() ? site.title : site.url.toString();
     return name;
+}
+
+QStandardItem * MainWindow::findItemById(int64_t id)
+{
+    for (int i = 0; i < subsModel.rowCount(); i++)
+    {
+        QStandardItem* item = subsModel.item(i);
+        if (item && item->data(ID).toLongLong() == id)
+            return item;
+    }
+    return nullptr;
 }
