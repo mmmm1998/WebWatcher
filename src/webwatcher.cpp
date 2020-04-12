@@ -295,3 +295,24 @@ void WebWatcher::addNamedTextNode(QDomElement& elem, QDomDocument& doc, QString 
     tmp.appendChild(doc.createTextNode(text));
     elem.appendChild(tmp);
 }
+
+void WebWatcher::reorder(QList<std::int64_t> ids)
+{
+    if (sites.size() == 0)
+        return;
+
+    size_t order_index = 0;
+    for (int64_t id : ids)
+    {
+        for (size_t i = order_index; i < sites.size(); i++)
+        {
+            if (sites[i].id == id)
+            {
+                if (order_index != i)
+                    swap(sites[order_index], sites[i]);
+                order_index++;
+                break;
+            }
+        }
+    }
+}

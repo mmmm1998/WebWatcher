@@ -48,6 +48,7 @@ class WebWatcher: public QObject
     void removeSite(std::int64_t id);
     std::optional<WatchedSite> siteById(std::int64_t id);
     QList<std::int64_t> ids();
+    void reorder(QList<std::int64_t> ids);
 
     QDomElement toXml(QDomDocument& doc);
     void fromXml(const QDomElement& content);

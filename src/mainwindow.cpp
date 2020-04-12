@@ -39,7 +39,13 @@ MainWindow::MainWindow (QWidget *parent) : QMainWindow (parent)
 
     ui.subsView->setModel(&subsModel);
     ui.subsView->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    
+    ui.subsView->setMovement(QListView::Free);
+    ui.subsView->setDragEnabled(true);
+    ui.subsView->setDefaultDropAction(Qt::MoveAction);
+    ui.subsView->setDragDropMode(QAbstractItemView::InternalMove);
+    ui.subsView->setDropIndicatorShown(true);
+    ui.subsView->setSelectionMode(QAbstractItemView::ExtendedSelection);
+
     ui.requestHistoryView->setModel(&probesModel);
     ui.requestHistoryView->setEditTriggers(QAbstractItemView::NoEditTriggers);
     probesModel.setHorizontalHeaderLabels({QObject::tr("Time"), QObject::tr("Value")});
@@ -194,8 +200,6 @@ void MainWindow::handleOnOffUpdateButton()
             site->isDisabled = !site->isDisabled;
             watcher.updateSite(*site);
 
-            qDebug() << "site->isDisabled" << site->isDisabled;
-
             setDisabled(item, site->isDisabled);
 
             if (site->isDisabled)
@@ -218,6 +222,7 @@ void MainWindow::addSite(const QUrl& url, QString title, QString xmlQuery, int64
     entry->setData(QVariant((qlonglong)id), ID);
     setUpdated(entry, false);
     setIgnorable(entry, false);
+    entry->setDropEnabled(false); // Disable overwrite items by another items
 
 
     subsModel.appendRow(entry);
@@ -283,7 +288,12 @@ void MainWindow::handleSiteAcessed(std::int64_t id)
 void MainWindow::save()
 {
     QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    QFile file(path + QLatin1String("/webwatcher.xml"));
+
+    const QString& swapFilename = path + QLatin1String("/webwatcher.xml.swap");
+    const QString& saveFilename = path + QLatin1String("/webwatcher.xml");
+    const QString& previousSaveFilename = path + QLatin1String("/webwatcher.xml.old");
+
+    QFile file(swapFilename);
     if (file.open(QIODevice::WriteOnly))
     {
         QDomDocument doc;
@@ -291,6 +301,11 @@ void MainWindow::save()
         file.write(doc.toByteArray(4)); // so, xml indent == 4
         file.close();
     }
+
+    // remove old, move save file to old, move swap to save
+    QFile::remove(previousSaveFilename);
+    QFile::rename(saveFilename, previousSaveFilename);
+    QFile::rename(swapFilename, saveFilename);
 }
 
 void MainWindow::load()
@@ -395,6 +410,17 @@ QDomElement MainWindow::toXml(QDomDocument& doc)
 
     root.setAttribute(QLatin1String("changesCount"), changesCount);
 
+
+    QList<std::int64_t> ids;
+    for (int i = 0; i < subsModel.rowCount(); i++)
+    {
+        QStandardItem* item = subsModel.item(i);
+        if (item)
+            ids.append(item->data(ID).toLongLong());
+    }
+
+    watcher.reorder(ids);
+
     for (int i = 0; i < subsModel.rowCount(); i++)
     {
         QStandardItem* item = subsModel.item(i);
@@ -439,6 +465,7 @@ void MainWindow::fromXml(const QDomElement& content)
         setUpdated(entry, false);
         setIgnorable(entry, false);
         setDisabled(entry, site->isDisabled);
+        entry->setDropEnabled(false); // Disable overwrite items by another items
 
         subsModel.appendRow(entry);
     }
