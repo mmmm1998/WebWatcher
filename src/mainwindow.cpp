@@ -311,7 +311,18 @@ void MainWindow::save()
 void MainWindow::load()
 {
     QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    QFile file(path + QLatin1String("/webwatcher.xml"));
+    const QString& saveFilename = path + QLatin1String("/webwatcher.xml");
+    const QString& previousSaveFilename = path + QLatin1String("/webwatcher.xml.old");
+
+    bool usedOldFile = false;
+    QFile file(saveFilename);
+
+    if (!QFile::exists(saveFilename))
+        if (QFile::exists(previousSaveFilename))
+        {
+            usedOldFile = true;
+            file.setFileName(previousSaveFilename);
+        }
 
     if (file.open(QIODevice::ReadOnly))
     {
@@ -320,7 +331,12 @@ void MainWindow::load()
         file.close();
 
         fromXml(doc.firstChildElement(QLatin1String("WebWatcherApplication")));
-        qDebug() << file.fileName() << watcher.ids().size();
+
+        if (usedOldFile)
+            //TODO localization
+            QMessageBox::warning(this, QLatin1String("Warning - Savefile"), QLatin1String("Actual save file haven't found, but program content was restored from previous save file. Some changes can be lost, sorry for that."));
+
+        qDebug() << usedOldFile << file.fileName() << watcher.ids().size();
     }
 }
 
