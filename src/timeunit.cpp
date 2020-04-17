@@ -66,5 +66,5 @@ ReadableDuration::TimeUnit ReadableDuration::unitType(const QString& unitName)
         if (UNITS[type].first == unitName)
             return type;
     }
-    assert(false);
+    return TimeUnit::Unknown;
 }

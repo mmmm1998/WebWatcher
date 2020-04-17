@@ -77,14 +77,15 @@ void MainWindow::closeEvent(QCloseEvent *event)
 {
     if (isHidden())
     {
-        event->accept();
         save();
+        event->accept();
     }
     else
     {
         tray.show();
         hide();
         event->ignore();
+        save();
     }
 }
 
@@ -382,6 +383,7 @@ void MainWindow::handleSubsEdit()
 
         const QString& unitName = ui.intervalUnitsCombobox->currentText();
         ReadableDuration::TimeUnit timeType = ReadableDuration::unitType(unitName);
+        assert(timeType != ReadableDuration::TimeUnit::Unknown);
         site->updateIntervalMs = ReadableDuration::toMs(ui.intervalEdit->text().toLongLong(), timeType);
 
         watcher.updateSite(*site);

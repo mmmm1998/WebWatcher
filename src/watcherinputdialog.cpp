@@ -1,5 +1,7 @@
 #include "watcherinputdialog.h"
 
+#include <cassert>
+
 using namespace std;
 
 WatcherInputDialog::WatcherInputDialog()
@@ -16,6 +18,7 @@ int64_t WatcherInputDialog::updateInterval()
     const QString& unitName = m_ui.intervalComboBox->currentText();
     const int64_t count = m_ui.intervalEdit->text().toLongLong();
     ReadableDuration::TimeUnit timeType = ReadableDuration::unitType(unitName);
+    assert(timeType != ReadableDuration::TimeUnit::Unknown);
     return ReadableDuration::toMs(count, timeType);
 }
 
