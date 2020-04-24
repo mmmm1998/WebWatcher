@@ -46,6 +46,8 @@ MainWindow::MainWindow (QWidget *parent) : QMainWindow (parent)
     ui.subsView->setDropIndicatorShown(true);
     ui.subsView->setSelectionMode(QAbstractItemView::ExtendedSelection);
 
+    connect(ui.subsView->selectionModel(), &QItemSelectionModel::currentChanged, this, &MainWindow::handleSubsClick);
+
     ui.requestHistoryView->setModel(&probesModel);
     ui.requestHistoryView->setEditTriggers(QAbstractItemView::NoEditTriggers);
     probesModel.setHorizontalHeaderLabels({QObject::tr("Time"), QObject::tr("Value")});

@@ -283,22 +283,6 @@
   </connection>
   <connection>
    <sender>subsView</sender>
-   <signal>clicked(QModelIndex)</signal>
-   <receiver>MainWindow</receiver>
-   <slot>handleSubsClick(QModelIndex)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>192</x>
-     <y>444</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>454</x>
-     <y>421</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>subsView</sender>
    <signal>doubleClicked(QModelIndex)</signal>
    <receiver>MainWindow</receiver>
    <slot>handleSubsDoubleClick(QModelIndex)</slot>
