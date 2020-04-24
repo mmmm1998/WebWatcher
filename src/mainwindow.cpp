@@ -126,9 +126,13 @@ void MainWindow::handleSubsDoubleClick(const QModelIndex& index)
 
 void MainWindow::handleRemoveSiteButton()
 {
-    QModelIndex index = ui.subsView->currentIndex();
-    if (index.isValid())
+    if (!ui.subsView->selectionModel()->hasSelection())
+        return;
+
+    QModelIndexList selection;
+    while (!(selection = ui.subsView->selectionModel()->selectedIndexes()).isEmpty())
     {
+        QModelIndex index = selection[0];
         QStandardItem *item = subsModel.itemFromIndex(index);
 
         bool updated = item->data(ST_Updated).toBool();
@@ -139,23 +143,24 @@ void MainWindow::handleRemoveSiteButton()
         watcher.removeSite(id);
 
         subsModel.removeRow(index.row());
-
-        // Clear field for updating watched site information - because we have removed selected element just now
-        ui.siteEdit->setText(QString());
-        ui.queryEdit->setText(QString());
-        ui.titleEdit->setText(QString());
-        ui.intervalUnitsCombobox->setCurrentIndex(0);
-        ui.intervalEdit->setText(QString());
-        probesModel.removeRows(0, probesModel.rowCount());
-
-        ui.subsView->clearSelection();
     }
+
+    // Clear field for updating watched site information - because we have removed selected element(s) just now
+    ui.siteEdit->setText(QString());
+    ui.queryEdit->setText(QString());
+    ui.titleEdit->setText(QString());
+    ui.intervalUnitsCombobox->setCurrentIndex(0);
+    ui.intervalEdit->setText(QString());
+    probesModel.removeRows(0, probesModel.rowCount());
 }
 
 void MainWindow::handleIgnoreSiteUpdateButton()
 {
-    QModelIndex index = ui.subsView->currentIndex();
-    if (index.isValid())
+    if (!ui.subsView->selectionModel()->hasSelection())
+        return;
+
+    QModelIndexList selection = ui.subsView->selectionModel()->selectedIndexes();
+    for (QModelIndex index : selection)
     {
         QStandardItem *item = subsModel.itemFromIndex(index);
 
@@ -169,8 +174,11 @@ void MainWindow::handleIgnoreSiteUpdateButton()
 
 void MainWindow::handleToggleSiteIgnorableButton()
 {
-    QModelIndex index = ui.subsView->currentIndex();
-    if (index.isValid())
+    if (!ui.subsView->selectionModel()->hasSelection())
+        return;
+
+    QModelIndexList selection = ui.subsView->selectionModel()->selectedIndexes();
+    for (QModelIndex index : selection)
     {
         QStandardItem *item = subsModel.itemFromIndex(index);
 
@@ -190,8 +198,11 @@ void MainWindow::handleToggleSiteIgnorableButton()
 
 void MainWindow::handleOnOffUpdateButton()
 {
-    QModelIndex index = ui.subsView->currentIndex();
-    if (index.isValid())
+    if (!ui.subsView->selectionModel()->hasSelection())
+        return;
+
+    QModelIndexList selection = ui.subsView->selectionModel()->selectedIndexes();
+    for (QModelIndex index : selection)
     {
         QStandardItem *item = subsModel.itemFromIndex(index);
 
