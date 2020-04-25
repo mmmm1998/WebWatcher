@@ -164,7 +164,7 @@
          <item row="1" column="0">
           <widget class="QLabel" name="siteLabel">
            <property name="text">
-            <string>Website</string>
+            <string>Web page</string>
            </property>
           </widget>
          </item>

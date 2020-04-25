@@ -1,5 +1,6 @@
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QTranslator>
 
 #include "mainwindow.h"
 
@@ -18,6 +19,10 @@ int main (int argc, char *argv[]) {
     parser.addOption(trayOption);
 
     parser.process(app);
+
+    QTranslator translator;
+    if (translator.load(QLocale::system(), QLatin1String("webwatcher"), QLatin1String("_"), QLatin1String(":/translations")))
+        app.installTranslator(&translator);
 
     MainWindow w;
     w.setWindowIcon(QIcon(QLatin1String(":/icons/watch.png")));

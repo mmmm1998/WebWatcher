@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/translations">
+        <file alias="webwatcher_ru_RU.qm">webwatcher_ru_RU.qm</file>
+    </qresource>
+</RCC>

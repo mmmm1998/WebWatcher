@@ -14,6 +14,7 @@ find_package(Qt5 5.6.0 CONFIG REQUIRED
     Network
     WebEngineWidgets
     Xml
+    LinguistTools
 )
 
 set (WEBSCANNER_HEADERS
@@ -34,12 +35,19 @@ set (WEBSCANNER_SOURCES
 source_group (TREE ${CMAKE_CURRENT_SOURCE_DIR}/src PREFIX Headers FILES ${WEBSCANNER_HEADERS})
 source_group (TREE ${CMAKE_CURRENT_SOURCE_DIR}/src PREFIX Sources FILES ${WEBSCANNER_SOURCES})
 
+# Generate translations from .ts files and add them to .qrc file
+file(GLOB TS_FILES "translations/*.ts")
+qt5_add_translation(QM_FILES ${TS_FILES})
+configure_file(translations/translations.qrc ${CMAKE_BINARY_DIR} COPYONLY)
+
 add_executable (webwatcher
     ${WEBSCANNER_HEADERS}
     ${WEBSCANNER_SOURCES}
     src/mainwindow.ui
     src/watcherinputdialog.ui
     resources.qrc
+    ${CMAKE_BINARY_DIR}/translations.qrc
+	${QM_FILES}
 )
 target_link_libraries (webwatcher PUBLIC
     Qt5::Widgets

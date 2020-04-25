@@ -347,8 +347,7 @@ void MainWindow::load()
         fromXml(doc.firstChildElement(QLatin1String("WebWatcherApplication")));
 
         if (usedOldFile)
-            //TODO localization
-            QMessageBox::warning(this, QLatin1String("Warning - Savefile"), QLatin1String("Actual save file haven't found, but program content was restored from previous save file. Some changes can be lost, sorry for that."));
+            QMessageBox::warning(this, tr("Warning - Savefile"), tr("Actual save file haven't found, but program content was restored from previous save file. Some changes can be lost, sorry for that."));
 
         qDebug() << usedOldFile << file.fileName() << watcher.ids().size();
     }
