@@ -54,6 +54,9 @@
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
+            <property name="toolTip">
+             <string>Add new target for web watching</string>
+            </property>
             <property name="text">
              <string>+</string>
             </property>
@@ -66,6 +69,9 @@
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>Remove selected entries</string>
             </property>
             <property name="text">
              <string>-</string>
@@ -80,6 +86,9 @@
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
+            <property name="toolTip">
+             <string>Set selected entries as viewed</string>
+            </property>
             <property name="text">
              <string>i</string>
             </property>
@@ -93,6 +102,9 @@
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
+            <property name="toolTip">
+             <string>Set selected entries as ignorable: they won't notify about changes</string>
+            </property>
             <property name="text">
              <string>[i]</string>
             </property>
@@ -105,6 +117,9 @@
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>Disable/enable selected entries</string>
             </property>
             <property name="text">
              <string>⏻</string>
@@ -154,7 +169,11 @@
           </widget>
          </item>
          <item row="1" column="1">
-          <widget class="QLineEdit" name="siteEdit"/>
+          <widget class="QLineEdit" name="siteEdit">
+           <property name="toolTip">
+            <string>Url of web page, which will be loaded during updation</string>
+           </property>
+          </widget>
          </item>
          <item row="2" column="0">
           <widget class="QLabel" name="titleLabel">
@@ -164,7 +183,11 @@
           </widget>
          </item>
          <item row="2" column="1">
-          <widget class="QLineEdit" name="titleEdit"/>
+          <widget class="QLineEdit" name="titleEdit">
+           <property name="toolTip">
+            <string>Visible name of entry in left part of window. If the field is empty, then the name will be setted from webpage name</string>
+           </property>
+          </widget>
          </item>
          <item row="3" column="0">
           <widget class="QLabel" name="queryLabel">
@@ -174,7 +197,11 @@
           </widget>
          </item>
          <item row="3" column="1">
-          <widget class="QLineEdit" name="queryEdit"/>
+          <widget class="QLineEdit" name="queryEdit">
+           <property name="toolTip">
+            <string>JavaScript code, which will executed on the loaded page. Result of code will be converted to string and will be added to results table</string>
+           </property>
+          </widget>
          </item>
          <item row="4" column="0">
           <widget class="QLabel" name="intervalLabel">
@@ -215,7 +242,7 @@
          <item row="5" column="1">
           <widget class="QPushButton" name="updateSiteButtion">
            <property name="text">
-            <string>Apply</string>
+            <string>Apply changes</string>
            </property>
           </widget>
          </item>

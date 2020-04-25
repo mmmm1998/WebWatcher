@@ -24,7 +24,11 @@
       </widget>
      </item>
      <item row="0" column="1">
-      <widget class="QLineEdit" name="siteEdit"/>
+      <widget class="QLineEdit" name="siteEdit">
+       <property name="toolTip">
+        <string>Url of web page, which will be loaded during updation</string>
+       </property>
+      </widget>
      </item>
      <item row="2" column="0">
       <widget class="QLabel" name="queryLabel">
@@ -34,7 +38,11 @@
       </widget>
      </item>
      <item row="2" column="1">
-      <widget class="QLineEdit" name="queryEdit"/>
+      <widget class="QLineEdit" name="queryEdit">
+       <property name="toolTip">
+        <string>JavaScript code, which will executed on the loaded page. Result of code will be converted to string and will be added to results table</string>
+       </property>
+      </widget>
      </item>
      <item row="3" column="0">
       <widget class="QLabel" name="intervalLabel">
@@ -61,7 +69,11 @@
       </widget>
      </item>
      <item row="1" column="1">
-      <widget class="QLineEdit" name="titleEdit"/>
+      <widget class="QLineEdit" name="titleEdit">
+       <property name="toolTip">
+        <string>Visible name of entry in left part of window. If the field is empty, then the name will be setted from webpage name</string>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>
