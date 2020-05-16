@@ -44,7 +44,7 @@ class WebWatcher: public QObject
 
     std::int64_t addSite(QUrl url, QString title, QString jsQuery, std::int64_t updateIntervalMs);
     bool setSite(std::int64_t id, QUrl url, QString title, bool isManualTitle, bool isDisable, QString jsQuery, std::int64_t updateIntervalMs);
-    bool updateSite(const WatchedSite& site);
+    bool updateSite(const WatchedSite& site, bool resetProbes = true);
     void removeSite(std::int64_t id);
     void removeSiteProbe(std::int64_t site_id, std::int64_t probe_number);
     std::optional<WatchedSite> siteById(std::int64_t id);

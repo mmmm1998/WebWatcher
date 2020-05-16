@@ -240,11 +240,34 @@
           </layout>
          </item>
          <item row="5" column="1">
-          <widget class="QPushButton" name="updateSiteButtion">
-           <property name="text">
-            <string>Apply changes</string>
-           </property>
-          </widget>
+          <layout class="QHBoxLayout" name="horizontalLayout_3">
+           <item>
+            <widget class="QCheckBox" name="resetProbesCheckBox">
+             <property name="toolTip">
+              <string>Reset probes on changing web page or JS query of watching</string>
+             </property>
+             <property name="text">
+              <string>Reset probes</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="updateSiteButtion">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>Apply changes</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </item>
         </layout>
        </widget>
@@ -271,7 +294,6 @@
   <tabstop>queryEdit</tabstop>
   <tabstop>intervalEdit</tabstop>
   <tabstop>intervalUnitsCombobox</tabstop>
-  <tabstop>updateSiteButtion</tabstop>
   <tabstop>requestHistoryView</tabstop>
  </tabstops>
  <resources/>
@@ -325,22 +347,6 @@
    </hints>
   </connection>
   <connection>
-   <sender>updateSiteButtion</sender>
-   <signal>clicked()</signal>
-   <receiver>MainWindow</receiver>
-   <slot>handleSubsEdit()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>895</x>
-     <y>165</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>593</x>
-     <y>421</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
    <sender>ignoreSiteUpdateButton</sender>
    <signal>clicked()</signal>
    <receiver>MainWindow</receiver>
@@ -388,6 +394,38 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>updateSiteButtion</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>handleSubsEdit()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>895</x>
+     <y>165</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>593</x>
+     <y>421</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>resetProbesCheckBox</sender>
+   <signal>stateChanged(int)</signal>
+   <receiver>MainWindow</receiver>
+   <slot>handleToggleNotResetableCheckbox()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>813</x>
+     <y>209</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>593</x>
+     <y>421</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>handleAddSiteButton()</slot>
@@ -398,5 +436,6 @@
   <slot>handleIgnoreSiteUpdateButton()</slot>
   <slot>handleToggleSiteIgnorableButton()</slot>
   <slot>handleOnOffUpdateButton()</slot>
+  <slot>handleToggleNotResetableCheckbox()</slot>
  </slots>
 </ui>

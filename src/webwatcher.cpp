@@ -24,36 +24,13 @@ int64_t WebWatcher::addSite(QUrl url, QString title, QString xmlQuery, std::int6
     return site.id;
 }
 
-bool WebWatcher::setSite(int64_t id, QUrl url, QString title, bool isManualTitle, bool isDisabled, QString jsQuery, std::int64_t updateIntervalMs)
-{
-    auto iter = std::find_if(sites.begin(), sites.end(), [id](const WatchedSite& site){return site.id == id;});
-    if (iter != sites.end())
-    {
-        bool needResetProbes = iter->url != url || iter->jsQuery != jsQuery;
-
-        iter->url = url;
-        iter->title = title;
-        iter->isManualTitle = isManualTitle;
-        iter->isDisabled = isDisabled;
-        iter->jsQuery = jsQuery;
-        iter->updateIntervalMs = updateIntervalMs;
-
-        if (needResetProbes)
-            iter->probes.clear();
-        updateSite(id);
-        return true;
-    }
-    else
-        return false;
-}
-
-bool WebWatcher::updateSite(const WatchedSite& site)
+bool WebWatcher::updateSite(const WatchedSite& site, bool resetProbes)
 {
     int64_t id = site.id;
     auto iter = std::find_if(sites.begin(), sites.end(), [id](const WatchedSite& iter_site){return iter_site.id == id;});
     if (iter != sites.end())
     {
-        bool needResetProbes = iter->url != site.url || iter->jsQuery != site.jsQuery;
+        bool needResetProbes = resetProbes && (iter->url != site.url || iter->jsQuery != site.jsQuery);
 
         *iter = site;
          if (needResetProbes)

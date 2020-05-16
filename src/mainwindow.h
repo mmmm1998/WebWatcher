@@ -26,6 +26,7 @@ class MainWindow : public QMainWindow
     void handleRemoveSiteButton();
     void handleIgnoreSiteUpdateButton();
     void handleToggleSiteIgnorableButton();
+    void handleToggleNotResetableCheckbox();
     void handleOnOffUpdateButton();
     void handleSubsClick(const QModelIndex &index);
     void handleSubsDoubleClick(const QModelIndex &index);
@@ -50,6 +51,7 @@ class MainWindow : public QMainWindow
     void setUpdated(QStandardItem* item, bool value);
     void setIgnorable(QStandardItem* item, bool value);
     void setDisabled(QStandardItem* item, bool value);
+    void setNotResetable(QStandardItem* item, bool value);
 
   private:
     static QString itemName(const WatchedSite& site);
@@ -67,6 +69,7 @@ class MainWindow : public QMainWindow
     static const int ID = Qt::UserRole + 1;
     static const int ST_Updated = Qt::UserRole + 2;
     static const int ST_Ignorable = Qt::UserRole + 3;
+    static const int ST_NotResetable = Qt::UserRole + 4;
 };
 
 #endif // MAINWINDOW_H

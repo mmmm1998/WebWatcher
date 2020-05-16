@@ -230,6 +230,16 @@ void MainWindow::handleOnOffUpdateButton()
     }
 }
 
+void MainWindow::handleToggleNotResetableCheckbox()
+{
+    QStandardItem *selectedItem = subsModel.itemFromIndex(ui.subsView->currentIndex());
+    if (selectedItem)
+    {
+        bool isNotResetable = !ui.resetProbesCheckBox->isChecked();
+        selectedItem->setData(isNotResetable, ST_NotResetable);
+    }
+}
+
 void MainWindow::addSite(const QUrl& url, QString title, QString xmlQuery, int64_t updateIntervalMs)
 {
     int64_t id = watcher.addSite(url, title, xmlQuery, updateIntervalMs);
@@ -239,7 +249,6 @@ void MainWindow::addSite(const QUrl& url, QString title, QString xmlQuery, int64
     setUpdated(entry, false);
     setIgnorable(entry, false);
     entry->setDropEnabled(false); // Disable overwrite items by another items
-
 
     subsModel.appendRow(entry);
 }
@@ -367,6 +376,8 @@ void MainWindow::handleSubsClick(const QModelIndex& index)
         ui.queryEdit->setText(site->jsQuery);
         ui.titleEdit->setText(site->title);
 
+        ui.resetProbesCheckBox->setCheckState(item->data(ST_NotResetable).toBool() ? Qt::Unchecked : Qt::Checked);
+
         pair<int64_t, ReadableDuration::TimeUnit> format = ReadableDuration::toHumanReadable(site->updateIntervalMs);
         ui.intervalUnitsCombobox->setCurrentText(ReadableDuration::unitName(format.second));
         ui.intervalEdit->setText(QString::number(format.first));
@@ -395,12 +406,14 @@ void MainWindow::handleSubsEdit()
         site->title = ui.titleEdit->text();
         site->jsQuery = ui.queryEdit->text();
 
+        bool resetProbes = ui.resetProbesCheckBox->isChecked();
+
         const QString& unitName = ui.intervalUnitsCombobox->currentText();
         ReadableDuration::TimeUnit timeType = ReadableDuration::unitType(unitName);
         assert(timeType != ReadableDuration::TimeUnit::Unknown);
         site->updateIntervalMs = ReadableDuration::toMs(ui.intervalEdit->text().toLongLong(), timeType);
 
-        watcher.updateSite(*site);
+        watcher.updateSite(*site, resetProbes);
 
         item->setText(itemName(*site));
     }
@@ -468,6 +481,12 @@ QDomElement MainWindow::toXml(QDomDocument& doc)
             idEl.appendChild(doc.createTextNode(QString::number(item->data(ID).toLongLong())));
             root.appendChild(idEl);
         }
+        if (item && item->data(ST_NotResetable).toBool())
+        {
+            QDomElement idEl = doc.createElement(QLatin1String("NotResetable"));
+            idEl.appendChild(doc.createTextNode(QString::number(item->data(ID).toLongLong())));
+            root.appendChild(idEl);
+        }
 
     }
 
@@ -496,6 +515,7 @@ void MainWindow::fromXml(const QDomElement& content)
         entry->setData((qint64)id, ID);
         setUpdated(entry, false);
         setIgnorable(entry, false);
+        setNotResetable(entry, false);
         setDisabled(entry, site->isDisabled);
         entry->setDropEnabled(false); // Disable overwrite items by another items
 
@@ -504,7 +524,7 @@ void MainWindow::fromXml(const QDomElement& content)
 
 
 
-    for (auto [tagname, actor]: {tuple{"WithChanges", &MainWindow::setUpdated}, tuple{"Ignorable", &MainWindow::setIgnorable}})
+    for (auto [tagname, actor]: {tuple{"WithChanges", &MainWindow::setUpdated}, tuple{"Ignorable", &MainWindow::setIgnorable}, tuple{"NotResetable", &MainWindow::setNotResetable}})
     {
         const QDomNodeList& idsElems = content.elementsByTagName(QLatin1String(tagname));
         for (size_t i = 0; i < idsElems.length(); i++)
@@ -563,6 +583,11 @@ void MainWindow::setDisabled(QStandardItem* item, bool value)
         back.setStyle(Qt::NoBrush);
     }
     item->setBackground(back);
+}
+
+void MainWindow::setNotResetable(QStandardItem* item, bool value)
+{
+    item->setData(value, ST_NotResetable);
 }
 
 QString MainWindow::itemName(const WatchedSite& site)
