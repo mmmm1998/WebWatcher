@@ -316,3 +316,13 @@ void WebWatcher::reorder(QList<std::int64_t> ids)
         }
     }
 }
+
+void WebWatcher::removeSiteProbe(std::int64_t site_id, std::int64_t probe_number)
+{
+    auto iter = std::find_if(sites.begin(), sites.end(), [site_id](const WatchedSite& site){return site.id == site_id;});
+    if (iter != sites.end())
+    {
+        if (iter->probes.size() > probe_number)
+            iter->probes.erase(iter->probes.begin() + probe_number);
+    }
+}

@@ -53,6 +53,8 @@ MainWindow::MainWindow (QWidget *parent) : QMainWindow (parent)
     probesModel.setHorizontalHeaderLabels({QObject::tr("Time"), QObject::tr("Value")});
     ui.requestHistoryView->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     ui.requestHistoryView->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    ui.requestHistoryView->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    ui.requestHistoryView->setSelectionBehavior(QAbstractItemView::SelectRows);
 
     connect(&watcher, &WebWatcher::siteAcessed, this, &MainWindow::handleSiteAcessed);
     connect(&watcher, &WebWatcher::siteChanged, this, &MainWindow::handleSiteChanged);
@@ -578,4 +580,31 @@ QStandardItem * MainWindow::findItemById(int64_t id)
             return item;
     }
     return nullptr;
+}
+
+void MainWindow::keyPressEvent(QKeyEvent* event)
+{
+    if (event->key() == Qt::Key_Delete && event->modifiers() == Qt::NoModifier)
+    {
+        if (ui.requestHistoryView->selectionModel()->hasSelection())
+        {
+            QModelIndex subIndex = ui.subsView->currentIndex();
+            QStandardItem* subItem = subsModel.itemFromIndex(subIndex);
+            int64_t site_id = subItem->data(ID).toLongLong();
+
+            QModelIndexList selection;
+            while (!(selection = ui.requestHistoryView->selectionModel()->selectedIndexes()).isEmpty())
+            {
+                QModelIndex index = selection[0];
+
+                watcher.removeSiteProbe(site_id, index.row());
+
+                probesModel.removeRow(index.row());
+            }
+            watcher.updateSite(site_id);
+            event->accept();
+            return;
+        }
+    }
+    QMainWindow::keyPressEvent(event);
 }

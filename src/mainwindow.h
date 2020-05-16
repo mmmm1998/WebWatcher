@@ -40,6 +40,7 @@ class MainWindow : public QMainWindow
     void closeEvent(QCloseEvent *event);
 
   private:
+    void keyPressEvent(QKeyEvent* event) override;
     void addSite(const QUrl& url, QString title, QString xmlQuery, std::int64_t updateIntervalMs);
     void updateProbesModel(const WatchedSite& site);
     void increaseChangeCount();
