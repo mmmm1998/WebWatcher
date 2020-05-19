@@ -15,6 +15,8 @@
 #include <QSystemTrayIcon>
 #include <QDomDocument>
 #include <QDomElement>
+#include <QFile>
+#include <QDesktopServices>
 
 #include <QDebug>
 
@@ -22,6 +24,8 @@
 #include "watcherinputdialog.h"
 
 using namespace std;
+
+const QString MainWindow::EDITOR_FILES_DIR = QString::fromLatin1("/webwatcher/");
 
 MainWindow::MainWindow (QWidget *parent) : QMainWindow (parent)
     , tray(QIcon(QLatin1String(":/icons/watch.png")), parent)
@@ -63,8 +67,19 @@ MainWindow::MainWindow (QWidget *parent) : QMainWindow (parent)
     for (const QString& unit: units)
         ui.intervalUnitsCombobox->addItem(unit);
 
+    const QString& filesDir = QDir::tempPath() + EDITOR_FILES_DIR;
+    if (!QFile::exists(filesDir))
+        QDir().mkpath(filesDir);
     load();
 }
+
+MainWindow::~MainWindow()
+{
+    const QString& filesDir = QDir::tempPath() + EDITOR_FILES_DIR;
+    if (QFile::exists(filesDir))
+        QDir().rmpath(filesDir);
+}
+
 
 void MainWindow::handleTrayActivation(QSystemTrayIcon::ActivationReason reason)
 {
@@ -142,6 +157,7 @@ void MainWindow::handleRemoveSiteButton()
             decreaseChangeCount();
 
         int64_t id = item->data(ID).toLongLong();
+        qDebug() << "updated: " << updated << id;
         watcher.removeSite(id);
 
         subsModel.removeRow(index.row());
@@ -267,7 +283,7 @@ void MainWindow::handleSiteChanged(int64_t id)
 
             if (!siteItem->data(ST_Ignorable).toBool())
             {
-                setUpdated(siteItem, true);
+                setUpdated(siteItem, true, false);
             }
 
             QStandardItem *selectedItem = subsModel.itemFromIndex(ui.subsView->currentIndex());
@@ -404,6 +420,20 @@ void MainWindow::handleSubsEdit()
         else
             site->isManualTitle = ui.titleEdit->text() != site->title;
         site->title = ui.titleEdit->text();
+
+        QString filename = editorFileName(id);
+        if (QFile::exists(filename))
+        {
+            QFile fin(filename);
+            if (fin.open(QFile::ReadOnly))
+            {
+                QString code = QString::fromLocal8Bit(fin.readAll());
+                ui.queryEdit->setText(code);
+            }
+            else
+                ; //TODO error read handling
+            QFile::remove(filename);
+        }
         site->jsQuery = ui.queryEdit->text();
 
         bool resetProbes = ui.resetProbesCheckBox->isChecked();
@@ -524,7 +554,7 @@ void MainWindow::fromXml(const QDomElement& content)
 
 
 
-    for (auto [tagname, actor]: {tuple{"WithChanges", &MainWindow::setUpdated}, tuple{"Ignorable", &MainWindow::setIgnorable}, tuple{"NotResetable", &MainWindow::setNotResetable}})
+    for (auto [tagname, actor]: {tuple{"WithChanges", &MainWindow::setUpdatedNoCounter}, tuple{"Ignorable", &MainWindow::setIgnorable}, tuple{"NotResetable", &MainWindow::setNotResetable}})
     {
         const QDomNodeList& idsElems = content.elementsByTagName(QLatin1String(tagname));
         for (size_t i = 0; i < idsElems.length(); i++)
@@ -543,11 +573,11 @@ void MainWindow::fromXml(const QDomElement& content)
     }
 }
 
-void MainWindow::setUpdated(QStandardItem* item, bool value)
+void MainWindow::setUpdated(QStandardItem* item, bool value, bool updateChangeCount)
 {
-    if (value && item->data(ST_Updated).toBool() == false)
+    if (value && item->data(ST_Updated).toBool() == false && updateChangeCount)
         increaseChangeCount();
-    else if (value == false && item->data(ST_Updated).toBool())
+    else if (value == false && item->data(ST_Updated).toBool() && updateChangeCount)
         decreaseChangeCount();
 
     item->setData(value, ST_Updated);
@@ -632,4 +662,36 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
         }
     }
     QMainWindow::keyPressEvent(event);
+}
+
+void MainWindow::openEditor()
+{
+    QStandardItem *item = subsModel.itemFromIndex(ui.subsView->currentIndex());
+
+    // Exit, if no model selection
+    if (item == nullptr)
+        return;
+
+    int64_t id = item->data(ID).toLongLong();
+
+    QString filename = editorFileName(id);
+    if(!QFile::exists(filename))
+    {
+        QFile fout(filename);
+        if (fout.open(QFile::WriteOnly))
+            fout.write(ui.queryEdit->text().toLocal8Bit());
+        else
+            ; //TODO error handling
+    }
+    QDesktopServices::openUrl(QUrl::fromLocalFile(filename));
+}
+
+QString MainWindow::editorFileName(int64_t id)
+{
+    return QDir::tempPath() + EDITOR_FILES_DIR + QString::fromLatin1("editor-file-%1.js").arg(id);
+}
+
+void MainWindow::setUpdatedNoCounter (QStandardItem* item, bool value)
+{
+    setUpdated(item, value, false);
 }

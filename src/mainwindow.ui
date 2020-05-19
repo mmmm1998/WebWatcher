@@ -189,28 +189,52 @@
            </property>
           </widget>
          </item>
-         <item row="3" column="0">
+         <item row="4" column="0">
           <widget class="QLabel" name="queryLabel">
            <property name="text">
             <string>JavaScript query</string>
            </property>
           </widget>
          </item>
-         <item row="3" column="1">
-          <widget class="QLineEdit" name="queryEdit">
-           <property name="toolTip">
-            <string>JavaScript code, which will executed on the loaded page. Result of code will be converted to string and will be added to results table</string>
-           </property>
-          </widget>
+         <item row="4" column="1">
+          <layout class="QHBoxLayout" name="horizontalLayout_4">
+           <item>
+            <widget class="QLineEdit" name="queryEdit">
+             <property name="toolTip">
+              <string>JavaScript code, which will executed on the loaded page. Result of code will be converted to string and will be added to results table</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="queryEditorButton">
+             <property name="toolTip">
+              <string>Create temporary file with query content and open in external editor. Content from file will be loaded on applying changes</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="icon">
+              <iconset theme="accessories-text-editor">
+               <normaloff>.</normaloff>.</iconset>
+             </property>
+             <property name="iconSize">
+              <size>
+               <width>32</width>
+               <height>32</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </item>
-         <item row="4" column="0">
+         <item row="5" column="0">
           <widget class="QLabel" name="intervalLabel">
            <property name="text">
             <string>Update Interval</string>
            </property>
           </widget>
          </item>
-         <item row="4" column="1">
+         <item row="5" column="1">
           <layout class="QHBoxLayout" name="horizontalLayout_2">
            <item>
             <widget class="QLineEdit" name="intervalEdit"/>
@@ -239,7 +263,7 @@
            </item>
           </layout>
          </item>
-         <item row="5" column="1">
+         <item row="6" column="1">
           <layout class="QHBoxLayout" name="horizontalLayout_3">
            <item>
             <widget class="QCheckBox" name="resetProbesCheckBox">
@@ -426,6 +450,22 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>queryEditorButton</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>openEditor()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1153</x>
+     <y>127</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>593</x>
+     <y>421</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>handleAddSiteButton()</slot>
@@ -437,5 +477,6 @@
   <slot>handleToggleSiteIgnorableButton()</slot>
   <slot>handleOnOffUpdateButton()</slot>
   <slot>handleToggleNotResetableCheckbox()</slot>
+  <slot>openEditor()</slot>
  </slots>
 </ui>

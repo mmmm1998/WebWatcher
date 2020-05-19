@@ -5,6 +5,7 @@
 #include <QSystemTrayIcon>
 #include <QStandardItemModel>
 #include <QRect>
+#include <QFileSystemWatcher>
 
 #include "webwatcher.h"
 
@@ -19,6 +20,7 @@ class MainWindow : public QMainWindow
   Q_OBJECT
   public:
     MainWindow(QWidget *parent = nullptr);
+    ~MainWindow();
 
   public slots:
     void handleTrayActivation(QSystemTrayIcon::ActivationReason reason);
@@ -33,6 +35,7 @@ class MainWindow : public QMainWindow
     void handleSubsEdit();
     void handleSiteChanged(std::int64_t id);
     void handleSiteAcessed(std::int64_t id);
+    void openEditor();
 
     void save();
     void load();
@@ -48,10 +51,12 @@ class MainWindow : public QMainWindow
     void decreaseChangeCount();
     QDomElement toXml(QDomDocument& doc);
     void fromXml(const QDomElement& content);
-    void setUpdated(QStandardItem* item, bool value);
+    void setUpdated(QStandardItem* item, bool value, bool updateChangeCount = true);
+    void setUpdatedNoCounter(QStandardItem* item, bool value);
     void setIgnorable(QStandardItem* item, bool value);
     void setDisabled(QStandardItem* item, bool value);
     void setNotResetable(QStandardItem* item, bool value);
+    QString editorFileName(int64_t id);
 
   private:
     static QString itemName(const WatchedSite& site);
@@ -70,6 +75,7 @@ class MainWindow : public QMainWindow
     static const int ST_Updated = Qt::UserRole + 2;
     static const int ST_Ignorable = Qt::UserRole + 3;
     static const int ST_NotResetable = Qt::UserRole + 4;
+    static const QString EDITOR_FILES_DIR;
 };
 
 #endif // MAINWINDOW_H
