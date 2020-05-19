@@ -57,6 +57,7 @@ class MainWindow : public QMainWindow
     void setDisabled(QStandardItem* item, bool value);
     void setNotResetable(QStandardItem* item, bool value);
     QString editorFileName(int64_t id);
+    void updateEditorFile();
 
   private:
     static QString itemName(const WatchedSite& site);

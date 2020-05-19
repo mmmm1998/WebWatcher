@@ -70,6 +70,7 @@ MainWindow::MainWindow (QWidget *parent) : QMainWindow (parent)
     const QString& filesDir = QDir::tempPath() + EDITOR_FILES_DIR;
     if (!QFile::exists(filesDir))
         QDir().mkpath(filesDir);
+    connect(ui.queryEdit, &QLineEdit::textEdited, this, &MainWindow::updateEditorFile);
     load();
 }
 
@@ -694,4 +695,24 @@ QString MainWindow::editorFileName(int64_t id)
 void MainWindow::setUpdatedNoCounter (QStandardItem* item, bool value)
 {
     setUpdated(item, value, false);
+}
+
+void MainWindow::updateEditorFile()
+{
+    QStandardItem *item = subsModel.itemFromIndex(ui.subsView->currentIndex());
+
+    // Exit, if no model selection
+    if (item == nullptr)
+        return;
+
+    int64_t id = item->data(ID).toLongLong();
+    QString filename = editorFileName(id);
+    if(QFile::exists(filename))
+    {
+        QFile fout(filename);
+        if (fout.open(QFile::WriteOnly))
+            fout.write(ui.queryEdit->text().toLocal8Bit());
+        else
+            ; //TODO error handling
+    }
 }
