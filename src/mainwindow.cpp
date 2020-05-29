@@ -284,7 +284,7 @@ void MainWindow::handleSiteChanged(int64_t id)
 
             if (!siteItem->data(ST_Ignorable).toBool())
             {
-                setUpdated(siteItem, true, false);
+                setUpdated(siteItem, true);
             }
 
             QStandardItem *selectedItem = subsModel.itemFromIndex(ui.subsView->currentIndex());
