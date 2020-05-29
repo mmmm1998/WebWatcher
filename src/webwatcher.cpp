@@ -140,15 +140,12 @@ QDomElement WebWatcher::toXml(QDomDocument& doc)
     QDomElement root = doc.createElement(QLatin1String("WebWatcher"));
 
     root.setAttribute(QLatin1String("id_counter"), QString::number(id_count));
-    root.setAttribute(QLatin1String("sites_count"), QString::number(sites.size()));
 
     for(const WatchedSite& site: sites)
     {
         QDomElement siteElem = doc.createElement(QLatin1String("WatchedSite"));
 
-
         siteElem.setAttribute(QLatin1String("id"), QString::number(site.id));
-        siteElem.setAttribute(QLatin1String("probes_count"), QString::number(site.probes.size()));
         siteElem.setAttribute(QLatin1String("disabled"), site.isDisabled ? "true" : "false");
 
         addNamedTextNode(siteElem, doc, QLatin1String("Url"), site.url.toString());
@@ -179,25 +176,20 @@ void WebWatcher::fromXml(const QDomElement& content)
     assert(content.tagName() == QLatin1String("WebWatcher"));
 
     assert(content.attributes().contains(QLatin1String("id_counter")));
-    assert(content.attributes().contains(QLatin1String("sites_count")));
 
     id_count = content.attribute(QLatin1String("id_counter")).toLongLong();
-    size_t count = content.attribute(QLatin1String("sites_count")).toLongLong();
 
-    sites.reserve(count);
     const QDomNodeList& sitesElems = content.elementsByTagName(QLatin1String("WatchedSite"));
-    for (size_t i = 0; i < count; i++)
+    for (size_t i = 0; i < sitesElems.length(); i++)
     {
         const QDomElement& siteElem = sitesElems.item(i).toElement();
 
         WatchedSite site;
 
         assert(siteElem.attributes().contains(QLatin1String("id")));
-        assert(siteElem.attributes().contains(QLatin1String("probes_count")));
         assert(siteElem.attributes().contains(QLatin1String("disabled")));
 
         site.id = siteElem.attribute(QLatin1String("id")).toLongLong();
-        size_t probesCount = (size_t)siteElem.attribute(QLatin1String("probes_count")).toLongLong();
         site.isDisabled = siteElem.attribute(QLatin1String("disabled")) == QLatin1String("true");
 
         assert(siteElem.firstChildElement(QLatin1String("Url")).isNull() == false);
@@ -216,7 +208,7 @@ void WebWatcher::fromXml(const QDomElement& content)
         site.updateIntervalMs = siteElem.firstChildElement(QLatin1String("Interval")).text().toLongLong();
 
         const QDomNodeList& probesElems = siteElem.elementsByTagName(QLatin1String("WatchedSiteProbe"));
-        for (size_t j = 0; j < probesCount; j++)
+        for (size_t j = 0; j < probesElems.length(); j++)
         {
             const QDomElement& probeElem = probesElems.item(j).toElement();
 
