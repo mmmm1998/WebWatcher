@@ -65,7 +65,7 @@ class MainWindow : public QMainWindow
 
   private:
     Ui::MainWindow ui;
-    QSystemTrayIcon tray;
+    QSystemTrayIcon* tray;
     QStandardItemModel subsModel;
     QStandardItemModel probesModel;
     WebWatcher watcher;

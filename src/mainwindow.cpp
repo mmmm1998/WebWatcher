@@ -28,18 +28,18 @@ using namespace std;
 const QString MainWindow::EDITOR_FILES_DIR = QString::fromLatin1("/webwatcher/");
 
 MainWindow::MainWindow (QWidget *parent) : QMainWindow (parent)
-    , tray(QIcon(QLatin1String(":/icons/watch.png")), parent)
+    , tray(new QSystemTrayIcon(QIcon(QLatin1String(":/icons/watch.png")), parent))
 {
     ui.setupUi(this);
 
     // Create tray and menu for the tray
     // Tray allows real close the application, because on close action the app just go to traybar
-    connect(&tray, &QSystemTrayIcon::activated, this, &MainWindow::handleTrayActivation);
+    connect(tray, &QSystemTrayIcon::activated, this, &MainWindow::handleTrayActivation);
     QMenu* menu = new QMenu(this);
     menu->addAction(tr("Exit"), this, &QMainWindow::close);
     menu->addAction(tr("Show"), this, &QMainWindow::show);
-    tray.setContextMenu(menu);
-    tray.show();
+    tray->setContextMenu(menu);
+    tray->show();
 
     ui.subsView->setModel(&subsModel);
     ui.subsView->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -98,11 +98,12 @@ void MainWindow::closeEvent(QCloseEvent *event)
     if (isHidden())
     {
         save();
+        delete tray;
         event->accept();
     }
     else
     {
-        tray.show();
+        tray->show();
         hide();
         event->ignore();
         save();
@@ -467,7 +468,7 @@ void MainWindow::decreaseChangeCount()
     changesCount--;
 
     if (changesCount == 0)
-        tray.setIcon(QIcon(QLatin1String(":/icons/watch.png")));
+        tray->setIcon(QIcon(QLatin1String(":/icons/watch.png")));
 }
 
 void MainWindow::increaseChangeCount()
@@ -477,7 +478,7 @@ void MainWindow::increaseChangeCount()
     // No need set icon each time, when changeCount was increased
     // because we can do it only when it is really needed
     if (changesCount == 1)
-        tray.setIcon(QIcon(QLatin1String(":/icons/updated.png")));
+        tray->setIcon(QIcon(QLatin1String(":/icons/updated.png")));
 }
 
 QDomElement MainWindow::toXml(QDomDocument& doc)
@@ -533,7 +534,7 @@ void MainWindow::fromXml(const QDomElement& content)
     assert(content.attributes().contains(QLatin1String("changesCount")));
     changesCount = content.attribute(QLatin1String("changesCount")).toInt();
     if (changesCount > 0)
-        tray.setIcon(QIcon(QLatin1String(":/icons/updated.png")));
+        tray->setIcon(QIcon(QLatin1String(":/icons/updated.png")));
 
     assert(content.firstChildElement(QLatin1String("WebWatcher")).isNull() == false);
     watcher.fromXml(content.firstChildElement(QLatin1String("WebWatcher")));
