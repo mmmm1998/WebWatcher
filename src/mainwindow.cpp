@@ -50,6 +50,8 @@ MainWindow::MainWindow (QWidget *parent) : QMainWindow (parent)
     ui.subsView->setDropIndicatorShown(true);
     ui.subsView->setSelectionMode(QAbstractItemView::ExtendedSelection);
 
+    initUiActions();
+
     connect(ui.subsView->selectionModel(), &QItemSelectionModel::currentChanged, this, &MainWindow::handleSubsClick);
 
     ui.requestHistoryView->setModel(&probesModel);
@@ -73,6 +75,44 @@ MainWindow::MainWindow (QWidget *parent) : QMainWindow (parent)
     connect(ui.queryEdit, &QLineEdit::textEdited, this, &MainWindow::updateEditorFile);
     load();
 }
+
+void MainWindow::initUiActions()
+{
+    QMenu* programMenu = ui.menuBar->addMenu(tr("Program"));
+    QAction* programExitAction = new QAction(QIcon::fromTheme("application-exit"), tr("Exit"), ui.menuBar);
+    programMenu->addAction(programExitAction);
+    connect(programExitAction, &QAction::triggered, this, &MainWindow::closeProgram);
+
+    QMenu* watchedSiteMenu = ui.menuBar->addMenu(tr("WatchedSite"));
+
+    QAction* addEntryAction = new QAction(QIcon::fromTheme("list-add"), tr("Add"), ui.menuBar);
+    ui.subsView->addAction(addEntryAction);
+    watchedSiteMenu->addAction(addEntryAction);
+    connect(addEntryAction, &QAction::triggered, this, &MainWindow::handleAddSiteButton);
+
+    QAction* removeEntryAction = new QAction(QIcon::fromTheme("list-remove"), tr("Remove"), ui.menuBar);
+    ui.subsView->addAction(removeEntryAction);
+    watchedSiteMenu->addAction(removeEntryAction);
+    connect(removeEntryAction, &QAction::triggered, this, &MainWindow::handleRemoveSiteButton);
+
+    QAction* ignoreUpdateAction = new QAction(QIcon::fromTheme("mail-mark-read"), tr("Ignore Update"), ui.menuBar);
+    ui.subsView->addAction(ignoreUpdateAction);
+    watchedSiteMenu->addAction(ignoreUpdateAction);
+    connect(ignoreUpdateAction, &QAction::triggered, this, &MainWindow::handleIgnoreSiteUpdateButton);
+
+    QAction* toggleIgnoranceAction = new QAction(QIcon::fromTheme("mail-mark-junk"), tr("Toggle Ignoring"), ui.menuBar);
+    ui.subsView->addAction(toggleIgnoranceAction);
+    watchedSiteMenu->addAction(toggleIgnoranceAction);
+    connect(toggleIgnoranceAction, &QAction::triggered, this, &MainWindow::handleToggleSiteIgnorableButton);
+
+    QAction* toggleUpdatingAction = new QAction(QIcon::fromTheme("process-stop"), tr("Toggle Updating"), ui.menuBar);
+    ui.subsView->addAction(toggleUpdatingAction);
+    watchedSiteMenu->addAction(toggleUpdatingAction);
+    connect(toggleUpdatingAction, &QAction::triggered, this, &MainWindow::handleOnOffUpdateButton);
+
+    ui.subsView->setContextMenuPolicy(Qt::ActionsContextMenu);
+}
+
 
 MainWindow::~MainWindow()
 {
@@ -108,6 +148,12 @@ void MainWindow::closeEvent(QCloseEvent *event)
         event->ignore();
         save();
     }
+}
+
+void MainWindow::closeProgram()
+{
+    hide();
+    close();
 }
 
 void MainWindow::handleAddSiteButton()
@@ -399,7 +445,7 @@ void MainWindow::handleSubsClick(const QModelIndex& index)
         pair<int64_t, ReadableDuration::TimeUnit> format = ReadableDuration::toHumanReadable(site->updateIntervalMs);
         ui.intervalUnitsCombobox->setCurrentText(ReadableDuration::unitName(format.second));
         ui.intervalEdit->setText(QString::number(format.first));
-        
+
         updateProbesModel(*site);
     }
 }
@@ -407,7 +453,7 @@ void MainWindow::handleSubsClick(const QModelIndex& index)
 void MainWindow::handleSubsEdit()
 {
     QStandardItem *item = subsModel.itemFromIndex(ui.subsView->currentIndex());
-    
+
     // Exit, if no model selection
     if (item == nullptr)
         return;

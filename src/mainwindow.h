@@ -39,6 +39,7 @@ class MainWindow : public QMainWindow
 
     void save();
     void load();
+    void closeProgram();
 
   private slots:
     void closeEvent(QCloseEvent *event);
@@ -58,6 +59,7 @@ class MainWindow : public QMainWindow
     void setNotResetable(QStandardItem* item, bool value);
     QString editorFileName(int64_t id);
     void updateEditorFile();
+    void initUiActions();
 
   private:
     static QString itemName(const WatchedSite& site);

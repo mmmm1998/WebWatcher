@@ -7,7 +7,7 @@
 int main (int argc, char *argv[]) {
     QApplication app(argc, argv);
     app.setApplicationName(QLatin1String("webwatcher"));
-    app.setApplicationVersion(QLatin1String("2.2.3"));
+    app.setApplicationVersion(QLatin1String("2.3.3"));
 
     //TODO description
     QCommandLineParser parser;
