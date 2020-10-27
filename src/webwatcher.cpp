@@ -11,12 +11,12 @@ using namespace std;
 
 static_assert(sizeof(qint64) == sizeof(int64_t));
 
-int64_t WebWatcher::addSite(QUrl url, QString title, QString xmlQuery, std::int64_t updateIntervalMs)
+int64_t WebWatcher::addSite(const WatchedSiteDescription& siteDescription)
 {
-    if (!url.isValid())
+    if (!siteDescription.url.isValid())
         return -1;
 
-    WatchedSite site{id_count++, url, title, title.isEmpty() == false, false, xmlQuery, updateIntervalMs};
+    WatchedSite site{id_count++, siteDescription};
     qDebug() << "WebWatcher new site" << site.id;
     sites.push_back(site);
 
@@ -24,17 +24,19 @@ int64_t WebWatcher::addSite(QUrl url, QString title, QString xmlQuery, std::int6
     return site.id;
 }
 
-bool WebWatcher::updateSite(const WatchedSite& site, bool resetProbes)
+bool WebWatcher::updateSite(std::int64_t id, const WatchedSiteDescription& siteDescription, bool allowResetLoadedData)
 {
-    int64_t id = site.id;
     auto iter = std::find_if(sites.begin(), sites.end(), [id](const WatchedSite& iter_site){return iter_site.id == id;});
     if (iter != sites.end())
     {
-        bool needResetProbes = resetProbes && (iter->url != site.url || iter->jsQuery != site.jsQuery);
+        bool needResetProbes = allowResetLoadedData && (iter->info.url != siteDescription.url || iter->info.jsQuery != siteDescription.jsQuery);
 
-        *iter = site;
-         if (needResetProbes)
+        iter->info = siteDescription;
+        if (needResetProbes)
+        {
             iter->probes.clear();
+            iter->page_title.clear();
+        }
         updateSite(id);
         return true;
     }
@@ -63,7 +65,7 @@ void WebWatcher::updateSite(int64_t id)
         else
         {
             int64_t lastUpdateTimeMs = iter->probes.size() != 0 ? iter->probes.back().accessTime : 0;
-            int64_t nextUpdateDate = lastUpdateTimeMs + iter->updateIntervalMs;
+            int64_t nextUpdateDate = lastUpdateTimeMs + iter->info.updateIntervalMs;
             if (currentMs > nextUpdateDate)
                 doSiteUpdate(iter);
             else
@@ -86,16 +88,16 @@ void WebWatcher::handlePageLoad(int64_t id, bool success, QWebEnginePage* page)
     auto iter = std::find_if(sites.begin(), sites.end(), [id](const WatchedSite& site){return site.id == id;});
     if (iter != sites.end())
     {
-        if (success && iter->url == page->requestedUrl())
+        if (success && iter->info.url == page->requestedUrl())
         {
-            page->runJavaScript(iter->jsQuery, [this, page, id](QVariant result){
+            page->runJavaScript(iter->info.jsQuery, [this, page, id](QVariant result){
                 this->handleJsCallback(id, result, page);
             });
         }
         else
         {
             //TODO
-            qDebug() << "failed to load" << iter->url;
+            qDebug() << "failed to load" << iter->info.url;
             processed.remove(id);
             page->deleteLater();
         }
@@ -108,12 +110,11 @@ void WebWatcher::handleJsCallback(int64_t id, QVariant callbackResult, QWebEngin
     if (iter != sites.end())
     {
         const QString& newData = callbackResult.toString();
-        qDebug() << "callbackResult" << iter->title << newData << QDateTime::currentMSecsSinceEpoch() - (iter->probes.size() == 0 ? 0 : iter->probes.back().accessTime);
+        qDebug() << "callbackResult" << iter->page_title << newData << QDateTime::currentMSecsSinceEpoch() - (iter->probes.size() == 0 ? 0 : iter->probes.back().accessTime);
         const QByteArray& hash = QCryptographicHash::hash(newData.toUtf8(), QCryptographicHash::Md5);
 
         // Update stored data
-        if (!iter->isManualTitle)
-            iter->title = page->title();
+        iter->page_title = page->title();
 
         int64_t currentMs = QDateTime::currentMSecsSinceEpoch();
         WatchedSiteProbe newProbe{currentMs, newData, hash};
@@ -146,17 +147,16 @@ QDomElement WebWatcher::toXml(QDomDocument& doc)
         QDomElement siteElem = doc.createElement(QLatin1String("WatchedSite"));
 
         siteElem.setAttribute(QLatin1String("id"), QString::number(site.id));
-        siteElem.setAttribute(QLatin1String("disabled"), site.isDisabled ? "true" : "false");
+        siteElem.setAttribute(QLatin1String("disabled"), site.info.isDisabled ? "true" : "false");
 
-        addNamedTextNode(siteElem, doc, QLatin1String("Url"), site.url.toString());
+        addNamedTextNode(siteElem, doc, QLatin1String("Url"), site.info.url.toString());
 
-        QDomElement titleElem = doc.createElement(QLatin1String("Title"));
-        titleElem.setAttribute(QLatin1String("manual"), site.isManualTitle ? "true" : "false");
-        titleElem.appendChild(doc.createTextNode(site.title));
+        QDomElement titleElem = doc.createElement(QLatin1String("PageTitle"));
+        titleElem.appendChild(doc.createTextNode(site.page_title));
         siteElem.appendChild(titleElem);
 
-        addNamedTextNode(siteElem, doc, QLatin1String("Query"), site.jsQuery);
-        addNamedTextNode(siteElem, doc, QLatin1String("Interval"), QString::number(site.updateIntervalMs));
+        addNamedTextNode(siteElem, doc, QLatin1String("Query"), site.info.jsQuery);
+        addNamedTextNode(siteElem, doc, QLatin1String("Interval"), QString::number(site.info.updateIntervalMs));
         for (const WatchedSiteProbe& probe: site.probes)
         {
             QDomElement probeElem  = doc.createElement(QLatin1String("WatchedSiteProbe"));
@@ -190,22 +190,20 @@ void WebWatcher::fromXml(const QDomElement& content)
         assert(siteElem.attributes().contains(QLatin1String("disabled")));
 
         site.id = siteElem.attribute(QLatin1String("id")).toLongLong();
-        site.isDisabled = siteElem.attribute(QLatin1String("disabled")) == QLatin1String("true");
+        site.info.isDisabled = siteElem.attribute(QLatin1String("disabled")) == QLatin1String("true");
 
         assert(siteElem.firstChildElement(QLatin1String("Url")).isNull() == false);
-        site.url = QUrl(siteElem.firstChildElement(QLatin1String("Url")).text());
+        site.info.url = QUrl(siteElem.firstChildElement(QLatin1String("Url")).text());
 
-        assert(siteElem.firstChildElement(QLatin1String("Title")).isNull() == false);
-        const QDomElement& titleEl = siteElem.firstChildElement(QLatin1String("Title"));
-        assert(titleEl.attributes().contains(QLatin1String("manual")));
-        site.title = titleEl.text();
-        site.isManualTitle = titleEl.attribute(QLatin1String("manual")) == QLatin1String("true");
+        assert(siteElem.firstChildElement(QLatin1String("PageTitle")).isNull() == false);
+        const QDomElement& titleEl = siteElem.firstChildElement(QLatin1String("PageTitle"));
+        site.page_title = titleEl.text();
 
         assert(siteElem.firstChildElement(QLatin1String("Query")).isNull() == false);
-        site.jsQuery = siteElem.firstChildElement(QLatin1String("Query")).text();
+        site.info.jsQuery = siteElem.firstChildElement(QLatin1String("Query")).text();
 
         assert(siteElem.firstChildElement(QLatin1String("Interval")).isNull() == false);
-        site.updateIntervalMs = siteElem.firstChildElement(QLatin1String("Interval")).text().toLongLong();
+        site.info.updateIntervalMs = siteElem.firstChildElement(QLatin1String("Interval")).text().toLongLong();
 
         const QDomNodeList& probesElems = siteElem.elementsByTagName(QLatin1String("WatchedSiteProbe"));
         for (size_t j = 0; j < probesElems.length(); j++)
@@ -246,16 +244,16 @@ QList<int64_t> WebWatcher::ids()
 void WebWatcher::doSiteUpdate(std::vector<WatchedSite>::iterator iter)
 {
     const int64_t id = iter->id;
-    if (!iter->isDisabled)
+    if (!iter->info.isDisabled)
     {
-        qDebug() << "request web update for" << id << iter->title;
+        qDebug() << "request web update for" << id << iter->page_title;
         QWebEnginePage* page = new QWebEnginePage(this);
-        page->load(iter->url);
+        page->load(iter->info.url);
         connect(page, &QWebEnginePage::loadFinished, [this, id, page](bool ok){this->handlePageLoad(id, ok, page);});
 
         processed[id] = QDateTime::currentMSecsSinceEpoch();
     }
-    QTimer::singleShot(iter->updateIntervalMs, this, [id, this](){this->updateSite(id);});
+    QTimer::singleShot(iter->info.updateIntervalMs, this, [id, this](){this->updateSite(id);});
 }
 
 void WebWatcher::addNamedTextNode(QDomElement& elem, QDomDocument& doc, QString name, QString text)
@@ -265,33 +263,21 @@ void WebWatcher::addNamedTextNode(QDomElement& elem, QDomDocument& doc, QString 
     elem.appendChild(tmp);
 }
 
-void WebWatcher::reorder(QList<std::int64_t> ids)
-{
-    if (sites.size() == 0)
-        return;
-
-    size_t order_index = 0;
-    for (int64_t id : ids)
-    {
-        for (size_t i = order_index; i < sites.size(); i++)
-        {
-            if (sites[i].id == id)
-            {
-                if (order_index != i)
-                    swap(sites[order_index], sites[i]);
-                order_index++;
-                break;
-            }
-        }
-    }
-}
-
 void WebWatcher::removeSiteProbe(std::int64_t site_id, std::int64_t probe_number)
 {
     auto iter = std::find_if(sites.begin(), sites.end(), [site_id](const WatchedSite& site){return site.id == site_id;});
     if (iter != sites.end())
     {
-        if (iter->probes.size() > probe_number)
+        if (probe_number < iter->probes.size())
             iter->probes.erase(iter->probes.begin() + probe_number);
+
+        //Check, need we to change next update time, or we even should run update right now
+        int64_t currentMs = QDateTime::currentMSecsSinceEpoch();
+        int64_t lastUpdateTimeMs = iter->probes.size() != 0 ? iter->probes.back().accessTime : 0;
+        int64_t nextUpdateDate = lastUpdateTimeMs + iter->info.updateIntervalMs;
+        if (currentMs > nextUpdateDate)
+            doSiteUpdate(iter);
+        else
+            QTimer::singleShot(nextUpdateDate-currentMs, this, [site_id, this](){this->updateSite(site_id);});
     }
 }

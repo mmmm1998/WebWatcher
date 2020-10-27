@@ -25,6 +25,51 @@
 
 using namespace std;
 
+struct WatchedEntryInfo
+{
+    int64_t id;
+    bool withChanges;
+    bool isIgnorable;
+    bool isUnresettable;
+    QString manualTitle;
+
+    static const QString classXmlTagName;
+
+    QDomElement toXml(QDomDocument& doc)
+    {
+        QDomElement root = doc.createElement(classXmlTagName);
+
+        QDomElement idEl = doc.createElement(QLatin1String("ID"));
+        idEl.appendChild(doc.createTextNode(QString::number(id)));
+        root.appendChild(idEl);
+
+        QDomElement titleEl = doc.createElement(QLatin1String("ManualTitle"));
+        titleEl.appendChild(doc.createTextNode(manualTitle));
+        root.appendChild(titleEl);
+
+        if (withChanges)
+            root.setAttribute(QLatin1String("with_changes"), QLatin1String("true"));
+        if (isIgnorable)
+            root.setAttribute(QLatin1String("ignorable"), QLatin1String("true"));
+        if (isUnresettable)
+            root.setAttribute(QLatin1String("unresettable"), QLatin1String("true"));
+
+        return root;
+    }
+
+    void fromXml(const QDomElement& content)
+    {
+        assert(content.tagName() == classXmlTagName);
+
+        id = content.firstChildElement(QLatin1String("ID")).text().toLongLong();
+        manualTitle = content.firstChildElement(QLatin1String("ManualTitle")).text();
+        withChanges = content.hasAttribute(QLatin1String("with_changes"));
+        isIgnorable = content.hasAttribute(QLatin1String("ignorable"));
+        isUnresettable = content.hasAttribute(QLatin1String("unresettable"));
+    }
+};
+const QString WatchedEntryInfo::classXmlTagName = QLatin1String("WatchedEntryInfo");
+
 const QString MainWindow::EDITOR_FILES_DIR = QString::fromLatin1("/webwatcher/");
 
 MainWindow::MainWindow (QWidget *parent) : QMainWindow (parent)
@@ -185,7 +230,7 @@ void MainWindow::handleSubsDoubleClick(const QModelIndex& index)
 
     int64_t id = item->data(ID).toLongLong();
     optional<WatchedSite> site = watcher.siteById(id);
-    const QUrl& url = site->url;
+    const QUrl& url = site->info.url;
     QDesktopServices::openUrl(url);
 }
 
@@ -277,12 +322,13 @@ void MainWindow::handleOnOffUpdateButton()
         if (site)
         {
             //change disabled value
-            site->isDisabled = !site->isDisabled;
-            watcher.updateSite(*site);
+            WatchedSiteDescription info = site->info;
+            info.isDisabled = !site->info.isDisabled;
+            watcher.updateSite(id, info);
 
-            setDisabled(item, site->isDisabled);
+            setDisabled(item, info.isDisabled);
 
-            if (site->isDisabled)
+            if (info.isDisabled)
             {
                 bool updated = item->data(ST_Updated).toBool();
                 if (updated)
@@ -306,12 +352,19 @@ void MainWindow::handleToggleNotResetableCheckbox()
 
 void MainWindow::addSite(const QUrl& url, QString title, QString xmlQuery, int64_t updateIntervalMs)
 {
-    int64_t id = watcher.addSite(url, title, xmlQuery, updateIntervalMs);
+    WatchedSiteDescription description;
+    description.url = url;
+    description.jsQuery = xmlQuery;
+    description.updateIntervalMs = updateIntervalMs;
 
-    QStandardItem* entry = new QStandardItem(url.toString());
+    int64_t id = watcher.addSite(description);
+    assert(id != -1);
+
+    QStandardItem* entry = new QStandardItem(title.isEmpty() ? url.toString(): title);
     entry->setData(QVariant((qlonglong)id), ID);
     setUpdated(entry, false);
     setIgnorable(entry, false);
+    entry->setData(QVariant(title), ST_ManualTitle);
     entry->setDropEnabled(false); // Disable overwrite items by another items
 
     subsModel.appendRow(entry);
@@ -326,7 +379,8 @@ void MainWindow::handleSiteChanged(int64_t id)
         optional<WatchedSite> site = watcher.siteById(id);
         if (site)
         {
-            siteItem->setText(itemName(*site));
+            const QString& storedManualTitle = siteItem->data(ST_ManualTitle).toString();
+            siteItem->setText(itemName(*site, storedManualTitle));
             qDebug() << "handle probe change from the site" << site->probes.size();
 
             if (!siteItem->data(ST_Ignorable).toBool())
@@ -346,8 +400,8 @@ void MainWindow::handleSiteChanged(int64_t id)
                     // 1. we change url of the entry
                     // 2. we see edit ui element for the entry in this moment
                     // 3. our title isn't manual and changed with the url
-                    if (!site->isManualTitle)
-                        ui.titleEdit->setText(site->title);
+                    if (storedManualTitle.isEmpty())
+                        ui.titleEdit->setText(itemName(*site, storedManualTitle));
                 }
             }
         }
@@ -370,7 +424,10 @@ void MainWindow::handleSiteAcessed(std::int64_t id)
 
         QStandardItem* siteItem = findItemById(id);
         if (siteItem)
-            siteItem->setText(itemName(*site));
+        {
+            const QString& storedManualTitle = siteItem->data(ST_ManualTitle).toString();
+            siteItem->setText(itemName(*site, storedManualTitle));
+        }
     }
 }
 
@@ -436,13 +493,15 @@ void MainWindow::handleSubsClick(const QModelIndex& index)
     optional<WatchedSite> site = watcher.siteById(id);
     if (site)
     {
-        ui.siteEdit->setText(site->url.toString());
-        ui.queryEdit->setText(site->jsQuery);
-        ui.titleEdit->setText(site->title);
+        const QString& storedManualTitle = item->data(ST_ManualTitle).toString();
+
+        ui.siteEdit->setText(site->info.url.toString());
+        ui.queryEdit->setText(site->info.jsQuery);
+        ui.titleEdit->setText(storedManualTitle.isEmpty() ? site->page_title : storedManualTitle);
 
         ui.resetProbesCheckBox->setCheckState(item->data(ST_NotResetable).toBool() ? Qt::Unchecked : Qt::Checked);
 
-        pair<int64_t, ReadableDuration::TimeUnit> format = ReadableDuration::toHumanReadable(site->updateIntervalMs);
+        pair<int64_t, ReadableDuration::TimeUnit> format = ReadableDuration::toHumanReadable(site->info.updateIntervalMs);
         ui.intervalUnitsCombobox->setCurrentText(ReadableDuration::unitName(format.second));
         ui.intervalEdit->setText(QString::number(format.first));
 
@@ -460,14 +519,23 @@ void MainWindow::handleSubsEdit()
 
     int64_t id = item->data(ID).toLongLong();
     optional<WatchedSite> site = watcher.siteById(id);
+
     if (site)
     {
-        site->url = QUrl(ui.siteEdit->text());
-        if (site->isManualTitle)
-            site->isManualTitle = !ui.titleEdit->text().isEmpty();
+        WatchedSiteDescription info;
+        QString storedManualTitle = item->data(ST_ManualTitle).toString();
+        bool isManualTitle = !storedManualTitle.isEmpty();
+
+        info.url = QUrl(ui.siteEdit->text());
+        if (isManualTitle)
+            isManualTitle = !(ui.titleEdit->text().isEmpty());
         else
-            site->isManualTitle = ui.titleEdit->text() != site->title;
-        site->title = ui.titleEdit->text();
+            isManualTitle = ui.titleEdit->text() != site->page_title;
+        if (isManualTitle)
+        {
+            storedManualTitle = ui.titleEdit->text();
+            item->setData(QVariant(storedManualTitle), ST_ManualTitle);
+        }
 
         QString filename = editorFileName(id);
         if (QFile::exists(filename))
@@ -482,18 +550,19 @@ void MainWindow::handleSubsEdit()
                 ; //TODO error read handling
             QFile::remove(filename);
         }
-        site->jsQuery = ui.queryEdit->text();
+        info.jsQuery = ui.queryEdit->text();
+        info.isDisabled = site->info.isDisabled;
 
         bool resetProbes = ui.resetProbesCheckBox->isChecked();
 
         const QString& unitName = ui.intervalUnitsCombobox->currentText();
         ReadableDuration::TimeUnit timeType = ReadableDuration::unitType(unitName);
         assert(timeType != ReadableDuration::TimeUnit::Unknown);
-        site->updateIntervalMs = ReadableDuration::toMs(ui.intervalEdit->text().toLongLong(), timeType);
+        info.updateIntervalMs = ReadableDuration::toMs(ui.intervalEdit->text().toLongLong(), timeType);
 
-        watcher.updateSite(*site, resetProbes);
+        watcher.updateSite(id, info, resetProbes);
 
-        item->setText(itemName(*site));
+        item->setText(itemName(*site, storedManualTitle));
     }
 }
 
@@ -534,39 +603,23 @@ QDomElement MainWindow::toXml(QDomDocument& doc)
     root.setAttribute(QLatin1String("changesCount"), changesCount);
 
 
-    QList<std::int64_t> ids;
+    QDomElement sitesRoot = doc.createElement(QLatin1String("WatchedSiteEntries"));
     for (int i = 0; i < subsModel.rowCount(); i++)
     {
         QStandardItem* item = subsModel.item(i);
         if (item)
-            ids.append(item->data(ID).toLongLong());
+        {
+            WatchedEntryInfo info;
+            info.id = item->data(ID).toLongLong();
+            info.withChanges = item->data(ST_Updated).toBool();
+            info.isIgnorable = item->data(ST_Ignorable).toBool();
+            info.isUnresettable = item->data(ST_NotResetable).toBool();
+            info.manualTitle = item->data(ST_ManualTitle).toString();
+
+            sitesRoot.appendChild(info.toXml(doc));
+        }
     }
-
-    watcher.reorder(ids);
-
-    for (int i = 0; i < subsModel.rowCount(); i++)
-    {
-        QStandardItem* item = subsModel.item(i);
-        if (item && item->data(ST_Updated).toBool()) // Item marked as changed
-        {
-            QDomElement idEl = doc.createElement(QLatin1String("WithChanges"));
-            idEl.appendChild(doc.createTextNode(QString::number(item->data(ID).toLongLong())));
-            root.appendChild(idEl);
-        }
-        if (item && item->data(ST_Ignorable).toBool())
-        {
-            QDomElement idEl = doc.createElement(QLatin1String("Ignorable"));
-            idEl.appendChild(doc.createTextNode(QString::number(item->data(ID).toLongLong())));
-            root.appendChild(idEl);
-        }
-        if (item && item->data(ST_NotResetable).toBool())
-        {
-            QDomElement idEl = doc.createElement(QLatin1String("NotResetable"));
-            idEl.appendChild(doc.createTextNode(QString::number(item->data(ID).toLongLong())));
-            root.appendChild(idEl);
-        }
-
-    }
+    root.appendChild(sitesRoot);
 
     root.appendChild(watcher.toXml(doc));
 
@@ -585,39 +638,27 @@ void MainWindow::fromXml(const QDomElement& content)
     assert(content.firstChildElement(QLatin1String("WebWatcher")).isNull() == false);
     watcher.fromXml(content.firstChildElement(QLatin1String("WebWatcher")));
 
-    QList<int64_t> ids = watcher.ids();
-    for (int64_t id : ids)
+    assert(content.firstChildElement(QLatin1String("WatchedSiteEntries")).isNull() == false);
+    QList<int64_t> subsOrder;
+    const QDomNodeList& infoElems
+        = content.firstChildElement(QLatin1String("WatchedSiteEntries")).elementsByTagName(WatchedEntryInfo::classXmlTagName);
+    for (size_t i = 0; i < infoElems.length(); i++)
     {
-        optional<WatchedSite> site = watcher.siteById(id);
-        QStandardItem* entry = new QStandardItem((site->title.isEmpty() ? site->url.toString() : site->title));
-        entry->setData((qint64)id, ID);
-        setUpdated(entry, false);
-        setIgnorable(entry, false);
-        setNotResetable(entry, false);
-        setDisabled(entry, site->isDisabled);
+        const QDomElement& infoElem = infoElems.item(i).toElement();
+        WatchedEntryInfo info;
+        info.fromXml(infoElem);
+
+        optional<WatchedSite> site = watcher.siteById(info.id);
+        QStandardItem* entry = new QStandardItem(itemName(*site, info.manualTitle));
+        entry->setData((qint64)info.id, ID);
+        setUpdatedNoCounter(entry, info.withChanges);
+        setIgnorable(entry, info.isIgnorable);
+        setNotResetable(entry, info.isUnresettable);
+        setDisabled(entry, site->info.isDisabled);
+        entry->setData(QVariant(info.manualTitle), ST_ManualTitle);
         entry->setDropEnabled(false); // Disable overwrite items by another items
 
         subsModel.appendRow(entry);
-    }
-
-
-
-    for (auto [tagname, actor]: {tuple{"WithChanges", &MainWindow::setUpdatedNoCounter}, tuple{"Ignorable", &MainWindow::setIgnorable}, tuple{"NotResetable", &MainWindow::setNotResetable}})
-    {
-        const QDomNodeList& idsElems = content.elementsByTagName(QLatin1String(tagname));
-        for (size_t i = 0; i < idsElems.length(); i++)
-        {
-            const QDomElement& siteElem = idsElems.item(i).toElement();
-            int64_t saveId = siteElem.text().toLongLong();
-            for (int i = 0; i < subsModel.rowCount(); i++)
-            {
-                QStandardItem* item = subsModel.item(i);
-                if (item && item->data(ID).toLongLong() == saveId)
-                {
-                    (this->*actor)(item, true);
-                }
-            }
-        }
     }
 }
 
@@ -668,9 +709,9 @@ void MainWindow::setNotResetable(QStandardItem* item, bool value)
     item->setData(value, ST_NotResetable);
 }
 
-QString MainWindow::itemName(const WatchedSite& site)
+QString MainWindow::itemName(const WatchedSite& site, const QString& manualTitle)
 {
-    QString name = !site.title.isEmpty() ? site.title : site.url.toString();
+    const QString& name = manualTitle.isEmpty() ? (site.page_title.isEmpty() ? site.info.url.toString() : site.page_title) : manualTitle;
     return name;
 }
 
@@ -704,7 +745,6 @@ void MainWindow::keyPressEvent(QKeyEvent* event)
 
                 probesModel.removeRow(index.row());
             }
-            watcher.updateSite(site_id);
             event->accept();
             return;
         }

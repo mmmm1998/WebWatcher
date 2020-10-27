@@ -62,7 +62,7 @@ class MainWindow : public QMainWindow
     void initUiActions();
 
   private:
-    static QString itemName(const WatchedSite& site);
+    static QString itemName(const WatchedSite& site, const QString& manualTitle);
     QStandardItem* findItemById(int64_t id);
 
   private:
@@ -78,6 +78,7 @@ class MainWindow : public QMainWindow
     static const int ST_Updated = Qt::UserRole + 2;
     static const int ST_Ignorable = Qt::UserRole + 3;
     static const int ST_NotResetable = Qt::UserRole + 4;
+    static const int ST_ManualTitle = Qt::UserRole + 5;
     static const QString EDITOR_FILES_DIR;
 };
 
