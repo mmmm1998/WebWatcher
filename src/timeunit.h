@@ -13,6 +13,9 @@ class ReadableDuration
   public:
     enum TimeUnit {Milliseconds, Seconds, Minutes, Hours, Days, Unknown};
 
+    //Need to use after translator installation
+    static void init();
+
     static int64_t toMs(int64_t count, TimeUnit unitType);
     static std::pair<int64_t, TimeUnit> toHumanReadable(int64_t ms);
 

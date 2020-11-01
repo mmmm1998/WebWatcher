@@ -11,14 +11,18 @@ using namespace std;
 // minute = 60'000 ms
 // hour == 3'600'000 ms
 // day == 86'400'000 ms
-static const QMap<ReadableDuration::TimeUnit, pair<QString, int64_t>> UNITS{
-    {ReadableDuration::Milliseconds, {QObject::tr("ms"), 1}},
-    {ReadableDuration::Seconds, {QObject::tr("seconds"), 1000}},
-    {ReadableDuration::Minutes, {QObject::tr("minutes"), 60000}},
-    {ReadableDuration::Hours, {QObject::tr("hours"), 3600000}},
-    {ReadableDuration::Days, {QObject::tr("days"), 86400000}},
-};
+static QMap<ReadableDuration::TimeUnit, pair<QString, int64_t>> UNITS;
 
+void ReadableDuration::init()
+{
+    UNITS = {
+        {ReadableDuration::Milliseconds, {QObject::tr("ms"), 1}},
+        {ReadableDuration::Seconds, {QObject::tr("seconds"), 1000}},
+        {ReadableDuration::Minutes, {QObject::tr("minutes"), 60000}},
+        {ReadableDuration::Hours, {QObject::tr("hours"), 3600000}},
+        {ReadableDuration::Days, {QObject::tr("days"), 86400000}},
+    };
+}
 
 int64_t ReadableDuration::toMs(int64_t count, TimeUnit unitType)
 {
@@ -48,7 +52,8 @@ std::pair<int64_t, ReadableDuration::TimeUnit> ReadableDuration::toHumanReadable
 QStringList ReadableDuration::supportedUnits()
 {
     QStringList units;
-    units << QObject::tr("ms") << QObject::tr("seconds") << QObject::tr("minutes") << QObject::tr("hours") << QObject::tr("days");
+    for (const auto& pair : UNITS)
+        units.append(pair.first);
     return units;
 }
 

@@ -3,11 +3,12 @@
 #include <QTranslator>
 
 #include "mainwindow.h"
+#include "timeunit.h"
 
 int main (int argc, char *argv[]) {
     QApplication app(argc, argv);
     app.setApplicationName(QLatin1String("webwatcher"));
-    app.setApplicationVersion(QLatin1String("2.4.1"));
+    app.setApplicationVersion(QLatin1String("2.4.2"));
 
     //TODO description
     QCommandLineParser parser;
@@ -25,6 +26,8 @@ int main (int argc, char *argv[]) {
     qDebug() << "System locale codes list" << QLocale::system().uiLanguages();
     if (translator.load(QLocale::system(), QLatin1String("webwatcher"), QLatin1String("_"), QLatin1String(":/translations")))
         app.installTranslator(&translator);
+
+    ReadableDuration::init();
 
     MainWindow w;
     w.setWindowIcon(QIcon(QLatin1String(":/icons/watch.png")));
