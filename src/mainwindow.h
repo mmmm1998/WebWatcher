@@ -8,9 +8,9 @@
 #include <QFileSystemWatcher>
 
 #include "webwatcher.h"
+#include "applicationsettings.h"
 
 #include "ui_mainwindow.h"
-
 
 class QCloseEvent;
 class QStandardItem;
@@ -19,7 +19,7 @@ class MainWindow : public QMainWindow
 {
   Q_OBJECT
   public:
-    MainWindow(QWidget *parent = nullptr);
+    MainWindow(WebWatcherApplSettings& settings, QWidget *parent = nullptr);
     ~MainWindow();
 
   public slots:
@@ -36,10 +36,15 @@ class MainWindow : public QMainWindow
     void handleSiteChanged(std::int64_t id);
     void handleSiteAcessed(std::int64_t id);
     void openEditor();
+    void handleLanguageSettings();
 
     void save();
     void load();
     void closeProgram();
+    void restart();
+
+public:
+  static int const EXIT_CODE_REBOOT;
 
   private slots:
     void closeEvent(QCloseEvent *event);
@@ -72,6 +77,8 @@ class MainWindow : public QMainWindow
     QStandardItemModel probesModel;
     WebWatcher watcher;
     int changesCount{0};
+
+    WebWatcherApplSettings& appSettings;
 
   private:
     static const int ID = Qt::UserRole + 1;

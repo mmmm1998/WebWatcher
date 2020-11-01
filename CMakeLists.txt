@@ -21,6 +21,8 @@ set (WEBSCANNER_HEADERS
     src/mainwindow.h
     src/webwatcher.h
     src/timeunit.h
+    src/applicationsettings.h
+    src/applicationlanguage.h
     src/watcherinputdialog.h
 )
 
@@ -29,6 +31,8 @@ set (WEBSCANNER_SOURCES
     src/webwatcher.cpp
     src/watcherinputdialog.cpp
     src/timeunit.cpp
+    src/applicationsettings.cpp
+    src/applicationlanguage.cpp
     src/main.cpp
 )
 
@@ -45,6 +49,7 @@ add_executable (webwatcher
     ${WEBSCANNER_SOURCES}
     src/mainwindow.ui
     src/watcherinputdialog.ui
+    src/languagedialog.ui
     resources.qrc
     ${CMAKE_BINARY_DIR}/translations.qrc
 	${QM_FILES}

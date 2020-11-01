@@ -17,11 +17,15 @@
 #include <QDomElement>
 #include <QFile>
 #include <QDesktopServices>
+#include <QApplication>
 
 #include <QDebug>
 
 #include "timeunit.h"
 #include "watcherinputdialog.h"
+#include "applicationlanguage.h"
+
+const int MainWindow::EXIT_CODE_REBOOT = 2020;
 
 using namespace std;
 
@@ -72,8 +76,9 @@ const QString WatchedEntryInfo::classXmlTagName = QLatin1String("WatchedEntryInf
 
 const QString MainWindow::EDITOR_FILES_DIR = QString::fromLatin1("/webwatcher/");
 
-MainWindow::MainWindow (QWidget *parent) : QMainWindow (parent)
+MainWindow::MainWindow (WebWatcherApplSettings& settings, QWidget *parent) : QMainWindow (parent)
     , tray(new QSystemTrayIcon(QIcon(QLatin1String(":/icons/watch.png")), parent))
+    , appSettings(settings)
 {
     ui.setupUi(this);
 
@@ -155,6 +160,12 @@ void MainWindow::initUiActions()
     watchedSiteMenu->addAction(toggleUpdatingAction);
     connect(toggleUpdatingAction, &QAction::triggered, this, &MainWindow::handleOnOffUpdateButton);
 
+    QMenu* settingsMenu = ui.menuBar->addMenu(tr("Settings"));
+
+    QAction* changeLanguageAction = new QAction(QIcon::fromTheme("emblem-system"), tr("Change language"), ui.menuBar);
+    settingsMenu->addAction(changeLanguageAction);
+    connect(changeLanguageAction, &QAction::triggered, this, &MainWindow::handleLanguageSettings);
+
     ui.subsView->setContextMenuPolicy(Qt::ActionsContextMenu);
 }
 
@@ -201,6 +212,14 @@ void MainWindow::closeProgram()
     close();
 }
 
+void MainWindow::restart()
+{
+    save();
+    tray->hide();
+    delete tray;
+    qApp->exit(EXIT_CODE_REBOOT);
+}
+
 void MainWindow::handleAddSiteButton()
 {
     WatcherInputDialog dialog;
@@ -214,6 +233,29 @@ void MainWindow::handleAddSiteButton()
         }
         else
             QMessageBox::warning(this, tr("WebWatcher"), tr("%1 url is invalid, only web sites (http, https) are supported").arg(url.toString()));
+    }
+}
+
+void MainWindow::handleLanguageSettings()
+{
+    LanguageDialog dialog(appSettings);
+
+    if (dialog.exec())
+    {
+        const QLocale& previousLocale = appSettings.usedLanguage;
+        appSettings.usedLanguage = dialog.choosenLanguage();
+
+        if (LanguageDialog::isEqual(previousLocale, appSettings.usedLanguage))
+        {
+            QMessageBox::StandardButton retCode = QMessageBox::question(
+                this, tr("WebWatcher"), tr("Changes will applied after the application restart. Restart now?")
+                , QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes
+            );
+            if (retCode == QMessageBox::Yes)
+            {
+                restart();
+            }
+        }
     }
 }
 
