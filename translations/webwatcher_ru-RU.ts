@@ -2,10 +2,29 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="ru_RU">
 <context>
+    <name>LanguageDialog</name>
+    <message>
+        <location filename="../src/languagedialog.ui" line="14"/>
+        <source>Switch Application Language</source>
+        <translation>Смена языка приложения</translation>
+    </message>
+    <message>
+        <location filename="../src/languagedialog.ui" line="20"/>
+        <source>Please choose the language which shold be used for this application</source>
+        <translation>Выберите язык интерфейса, который должен использоватся в этом приложении</translation>
+    </message>
+    <message>
+        <location filename="../src/languagedialog.ui" line="42"/>
+        <source>Primary language: </source>
+        <translation>Основной язык</translation>
+    </message>
+</context>
+<context>
     <name>MainWindow</name>
     <message>
         <location filename="../src/mainwindow.ui" line="20"/>
-        <location filename="../src/mainwindow.cpp" line="216"/>
+        <location filename="../src/mainwindow.cpp" line="235"/>
+        <location filename="../src/mainwindow.cpp" line="251"/>
         <source>WebWatcher</source>
         <translation></translation>
     </message>
@@ -65,63 +84,78 @@
         <translation>Применить изменения</translation>
     </message>
     <message>
-        <location filename="../src/mainwindow.cpp" line="84"/>
-        <location filename="../src/mainwindow.cpp" line="127"/>
+        <location filename="../src/mainwindow.cpp" line="89"/>
+        <location filename="../src/mainwindow.cpp" line="132"/>
         <source>Exit</source>
         <translation>Выход</translation>
     </message>
     <message>
-        <location filename="../src/mainwindow.cpp" line="85"/>
+        <location filename="../src/mainwindow.cpp" line="90"/>
         <source>Show</source>
         <translation>Показать</translation>
     </message>
     <message>
-        <location filename="../src/mainwindow.cpp" line="126"/>
+        <location filename="../src/mainwindow.cpp" line="131"/>
         <source>Program</source>
         <translation>Программа</translation>
     </message>
     <message>
-        <location filename="../src/mainwindow.cpp" line="131"/>
+        <location filename="../src/mainwindow.cpp" line="136"/>
         <source>WatchedSite</source>
         <translation>Сайты</translation>
     </message>
     <message>
-        <location filename="../src/mainwindow.cpp" line="133"/>
+        <location filename="../src/mainwindow.cpp" line="138"/>
         <source>Add</source>
         <translation>Добавить</translation>
     </message>
     <message>
-        <location filename="../src/mainwindow.cpp" line="138"/>
+        <location filename="../src/mainwindow.cpp" line="143"/>
         <source>Remove</source>
         <translation>Удалить</translation>
     </message>
     <message>
-        <location filename="../src/mainwindow.cpp" line="143"/>
+        <location filename="../src/mainwindow.cpp" line="148"/>
         <source>Ignore Update</source>
         <translation>Игнорировать обновление</translation>
     </message>
     <message>
-        <location filename="../src/mainwindow.cpp" line="148"/>
+        <location filename="../src/mainwindow.cpp" line="153"/>
         <source>Toggle Ignoring</source>
         <translation>Переключить игнорирование обновлений</translation>
     </message>
     <message>
-        <location filename="../src/mainwindow.cpp" line="153"/>
+        <location filename="../src/mainwindow.cpp" line="158"/>
         <source>Toggle Updating</source>
         <translation>Переключить обновление</translation>
     </message>
     <message>
-        <location filename="../src/mainwindow.cpp" line="216"/>
+        <location filename="../src/mainwindow.cpp" line="163"/>
+        <source>Settings</source>
+        <translation>Настройки</translation>
+    </message>
+    <message>
+        <location filename="../src/mainwindow.cpp" line="165"/>
+        <source>Change language</source>
+        <translation>Изменить язык</translation>
+    </message>
+    <message>
+        <location filename="../src/mainwindow.cpp" line="235"/>
         <source>%1 url is invalid, only web sites (http, https) are supported</source>
         <translation>URL %1 является некорректным, поддерживаются только веб страницы протокола http и https</translation>
     </message>
     <message>
-        <location filename="../src/mainwindow.cpp" line="482"/>
+        <location filename="../src/mainwindow.cpp" line="251"/>
+        <source>Changes will applied after the application restart. Restart now?</source>
+        <translation>Изменения будут применины после перезапуска приложения. Перезапустить сейчас?</translation>
+    </message>
+    <message>
+        <location filename="../src/mainwindow.cpp" line="524"/>
         <source>Warning - Savefile</source>
         <translation>Предупреждение - Файл сохранения</translation>
     </message>
     <message>
-        <location filename="../src/mainwindow.cpp" line="482"/>
+        <location filename="../src/mainwindow.cpp" line="524"/>
         <source>Actual save file haven&apos;t found, but program content was restored from previous save file. Some changes can be lost, sorry for that.</source>
         <translation>Текущий файл с данными приложения не был найден, но программа может восстановить предыдущий файл. Некоторые изменения будут потеряные, извините за это.</translation>
     </message>
@@ -129,37 +163,37 @@
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../src/mainwindow.cpp" line="104"/>
+        <location filename="../src/mainwindow.cpp" line="109"/>
         <source>Time</source>
         <translation>Время</translation>
     </message>
     <message>
-        <location filename="../src/mainwindow.cpp" line="104"/>
+        <location filename="../src/mainwindow.cpp" line="109"/>
         <source>Value</source>
         <translation>Результат</translation>
     </message>
     <message>
-        <location filename="../src/timeunit.cpp" line="15"/>
+        <location filename="../src/timeunit.cpp" line="19"/>
         <source>ms</source>
         <translation>мс</translation>
     </message>
     <message>
-        <location filename="../src/timeunit.cpp" line="16"/>
+        <location filename="../src/timeunit.cpp" line="20"/>
         <source>seconds</source>
         <translation>секунды</translation>
     </message>
     <message>
-        <location filename="../src/timeunit.cpp" line="17"/>
+        <location filename="../src/timeunit.cpp" line="21"/>
         <source>minutes</source>
         <translation>минуты</translation>
     </message>
     <message>
-        <location filename="../src/timeunit.cpp" line="18"/>
+        <location filename="../src/timeunit.cpp" line="22"/>
         <source>hours</source>
         <translation>часы</translation>
     </message>
     <message>
-        <location filename="../src/timeunit.cpp" line="19"/>
+        <location filename="../src/timeunit.cpp" line="23"/>
         <source>days</source>
         <translation>дни</translation>
     </message>
@@ -210,7 +244,7 @@
 <context>
     <name>main</name>
     <message>
-        <location filename="../src/main.cpp" line="18"/>
+        <location filename="../src/main.cpp" line="24"/>
         <source>Startup WebWatcher in a tray</source>
         <translation>Запустить WebWatcher в системном лотке</translation>
     </message>
