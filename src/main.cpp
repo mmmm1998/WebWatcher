@@ -7,7 +7,7 @@
 int main (int argc, char *argv[]) {
     QApplication app(argc, argv);
     app.setApplicationName(QLatin1String("webwatcher"));
-    app.setApplicationVersion(QLatin1String("2.4.0"));
+    app.setApplicationVersion(QLatin1String("2.4.1"));
 
     //TODO description
     QCommandLineParser parser;
@@ -21,6 +21,8 @@ int main (int argc, char *argv[]) {
     parser.process(app);
 
     QTranslator translator;
+    qDebug() << "System locale: " << QLocale::system();
+    qDebug() << "System locale codes list" << QLocale::system().uiLanguages();
     if (translator.load(QLocale::system(), QLatin1String("webwatcher"), QLatin1String("_"), QLatin1String(":/translations")))
         app.installTranslator(&translator);
 
