@@ -48,8 +48,7 @@ std::pair<int64_t, ReadableDuration::TimeUnit> ReadableDuration::toHumanReadable
 QStringList ReadableDuration::supportedUnits()
 {
     QStringList units;
-    for (const auto& pair : UNITS)
-        units.append(pair.first);
+    units << QObject::tr("ms") << QObject::tr("seconds") << QObject::tr("minutes") << QObject::tr("hours") << QObject::tr("days");
     return units;
 }
 
