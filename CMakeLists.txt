@@ -18,12 +18,12 @@ find_package(Qt5 5.6.0 CONFIG REQUIRED
 )
 
 set (WEBSCANNER_HEADERS
-    src/mainwindow.h
-    src/webwatcher.h
-    src/timeunit.h
-    src/applicationsettings.h
-    src/applicationlanguage.h
-    src/watcherinputdialog.h
+    src/mainwindow.hpp
+    src/webwatcher.hpp
+    src/timeunit.hpp
+    src/applicationsettings.hpp
+    src/applicationlanguage.hpp
+    src/watcherinputdialog.hpp
 )
 
 set (WEBSCANNER_SOURCES

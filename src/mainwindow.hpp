@@ -7,8 +7,8 @@
 #include <QRect>
 #include <QFileSystemWatcher>
 
-#include "webwatcher.h"
-#include "applicationsettings.h"
+#include "webwatcher.hpp"
+#include "applicationsettings.hpp"
 
 #include "ui_mainwindow.h"
 

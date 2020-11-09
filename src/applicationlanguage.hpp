@@ -7,7 +7,7 @@
 #include <QSet>
 #include <QLocale>
 
-#include "applicationsettings.h"
+#include "applicationsettings.hpp"
 
 #include "ui_languagedialog.h"
 

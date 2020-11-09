@@ -4,9 +4,9 @@
 #include <QDir>
 #include <QStandardPaths>
 
-#include "mainwindow.h"
-#include "timeunit.h"
-#include "applicationsettings.h"
+#include "mainwindow.hpp"
+#include "timeunit.hpp"
+#include "applicationsettings.hpp"
 
 int main (int argc, char *argv[]) {
     int appReturnCode;

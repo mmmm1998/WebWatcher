@@ -1,4 +1,4 @@
-#include "mainwindow.h"
+#include "mainwindow.hpp"
 
 #include <cassert>
 
@@ -21,9 +21,9 @@
 
 #include <QDebug>
 
-#include "timeunit.h"
-#include "watcherinputdialog.h"
-#include "applicationlanguage.h"
+#include "timeunit.hpp"
+#include "watcherinputdialog.hpp"
+#include "applicationlanguage.hpp"
 
 const int MainWindow::EXIT_CODE_REBOOT = 2020;
 

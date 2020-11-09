@@ -1,4 +1,4 @@
-#include "watcherinputdialog.h"
+#include "watcherinputdialog.hpp"
 
 #include <cassert>
 

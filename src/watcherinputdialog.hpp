@@ -6,7 +6,7 @@
 #include <QUrl>
 
 #include "ui_watcherinputdialog.h"
-#include "timeunit.h"
+#include "timeunit.hpp"
 
 class WatcherInputDialog : public QDialog
 {

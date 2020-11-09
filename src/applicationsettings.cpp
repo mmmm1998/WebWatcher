@@ -1,4 +1,4 @@
-#include "applicationsettings.h"
+#include "applicationsettings.hpp"
 
 #include <QStandardPaths>
 #include <QDomElement>

@@ -1,4 +1,4 @@
-#include "webwatcher.h"
+#include "webwatcher.hpp"
 
 #include <cassert>
 

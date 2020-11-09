@@ -1,4 +1,4 @@
-#include "applicationlanguage.h"
+#include "applicationlanguage.hpp"
 
 #include <QDir>
 #include <QDebug>
