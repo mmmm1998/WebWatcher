@@ -133,6 +133,10 @@ class WebWatcher: public QObject
     void fromXml(const QDomElement& content);
 
   signals:
+    /// Emit, when previous request for watched entry wit @p id haven't finished until new request time. Time from previous request also added (@p requestOutdateMs)
+    void requestOutdated(std::int64_t, std::int64_t requestOutdateMs);
+    /// Emit, then page loading for watched entry with @p id have failed. The failed address also attached (@p url)
+    void failToLoadPage(std::int64_t id, const QUrl& url);
     /// Emit on each access of watched entry with this @p id
     void siteAcessed(std::int64_t id);
     /// Emit only, if result of query for this access is different from result of the previous access of watched entry with this @p id

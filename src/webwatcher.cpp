@@ -7,6 +7,8 @@
 #include <QTimer>
 #include <QWebEnginePage>
 
+#include "logging.hpp"
+
 using namespace std;
 
 static_assert(sizeof(qint64) == sizeof(int64_t));
@@ -17,7 +19,7 @@ int64_t WebWatcher::addSite(const WatchedSiteDescription& siteDescription)
         return -1;
 
     WatchedSite site{id_count++, siteDescription};
-    qDebug() << "WebWatcher new site" << site.id;
+    Log::info("[watcher] Add new watched site #%ld", site.id);
     sites.push_back(site);
 
     updateSite(site.id);
@@ -48,7 +50,10 @@ void WebWatcher::removeSite(int64_t id)
 {
     auto iter = std::find_if(sites.begin(), sites.end(), [id](const WatchedSite& site){return site.id == id;});
     if (iter != sites.end())
+    {
+        Log::info("[watcher] Remove watched site #%ld", id);
         sites.erase(iter);
+    }
 }
 
 void WebWatcher::updateSite(int64_t id)
@@ -57,15 +62,15 @@ void WebWatcher::updateSite(int64_t id)
     if (iter != sites.end())
     {
         int64_t currentMs = QDateTime::currentMSecsSinceEpoch();
+        int64_t lastUpdateTimeMs = iter->probes.size() != 0 ? iter->probes.back().accessTime : 0;
+        int64_t nextUpdateDate = lastUpdateTimeMs + iter->info.updateIntervalMs;
         if (processed.keys().contains(id))
         {
-            qDebug() << "requrest timeout" << iter->id << "time sinse request" << currentMs - processed[id];
-            //TODO
+            Log::error("[watcher] Request for #%ld have timeouted by %d seconds, so something wrong", id, currentMs - processed[id]);
+            emit requestOutdated(id, currentMs - nextUpdateDate);
         }
         else
         {
-            int64_t lastUpdateTimeMs = iter->probes.size() != 0 ? iter->probes.back().accessTime : 0;
-            int64_t nextUpdateDate = lastUpdateTimeMs + iter->info.updateIntervalMs;
             if (currentMs > nextUpdateDate)
                 doSiteUpdate(iter);
             else
@@ -90,14 +95,15 @@ void WebWatcher::handlePageLoad(int64_t id, bool success, QWebEnginePage* page)
     {
         if (success && iter->info.url == page->requestedUrl())
         {
+            Log::info("[watcher] Requested webpage for watched site #%ld have loaded successfully, run JS query", id);
             page->runJavaScript(iter->info.jsQuery, [this, page, id](QVariant result){
                 this->handleJsCallback(id, result, page);
             });
         }
         else
         {
-            //TODO
-            qDebug() << "failed to load" << iter->info.url;
+            Log::error("[watcher] Fail to load webpage for watched site #%ld, so something wrong", id);
+            emit failToLoadPage(id, iter->info.url);
             processed.remove(id);
             page->deleteLater();
         }
@@ -110,7 +116,9 @@ void WebWatcher::handleJsCallback(int64_t id, QVariant callbackResult, QWebEngin
     if (iter != sites.end())
     {
         const QString& newData = callbackResult.toString();
-        qDebug() << "callbackResult" << iter->page_title << newData << QDateTime::currentMSecsSinceEpoch() - (iter->probes.size() == 0 ? 0 : iter->probes.back().accessTime);
+        Log::info("[watcher] Successfuly run JS query for watched site #%ld", id);
+        Log::debug("[watcher] Probe result \"%s\"", newData.toLocal8Bit().data());
+        Log::info("[watcher] %f seconds have passed since last probe", (QDateTime::currentMSecsSinceEpoch() - (iter->probes.size() == 0 ? 0 : iter->probes.back().accessTime))/1000.0);
         const QByteArray& hash = QCryptographicHash::hash(newData.toUtf8(), QCryptographicHash::Md5);
 
         // Update stored data
@@ -122,6 +130,7 @@ void WebWatcher::handleJsCallback(int64_t id, QVariant callbackResult, QWebEngin
         assert(hash != QByteArray());
         if (oldHash != hash)
         {
+            Log::info("[watcher] Query result for watched site #%ld have changed, so emit signal", id);
             iter->probes.push_back(newProbe);
             emit siteAcessed(id);
             emit siteChanged(id);
@@ -246,10 +255,16 @@ void WebWatcher::doSiteUpdate(std::vector<WatchedSite>::iterator iter)
     const int64_t id = iter->id;
     if (!iter->info.isDisabled)
     {
-        qDebug() << "request web update for" << id << iter->page_title;
+        Log::info("[watcher] Request update for watched site #%ld (%s)", id, iter->page_title.toLocal8Bit().data());
         QWebEnginePage* page = new QWebEnginePage(this);
         page->load(iter->info.url);
         connect(page, &QWebEnginePage::loadFinished, [this, id, page](bool ok){this->handlePageLoad(id, ok, page);});
+        if (Log::willBeLogged(Log::Level::Debug))
+        {
+            connect(page, &QWebEnginePage::loadProgress, [id](int progress){
+                Log::debug("[watcher] watched site #%ld request progress %d%", id, progress);
+            });
+        }
 
         processed[id] = QDateTime::currentMSecsSinceEpoch();
     }

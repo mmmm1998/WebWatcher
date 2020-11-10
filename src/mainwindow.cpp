@@ -21,6 +21,7 @@
 
 #include <QDebug>
 
+#include "logging.hpp"
 #include "timeunit.hpp"
 #include "watcherinputdialog.hpp"
 #include "applicationlanguage.hpp"
@@ -114,6 +115,8 @@ MainWindow::MainWindow (WebWatcherApplSettings& settings, QWidget *parent) : QMa
 
     connect(&watcher, &WebWatcher::siteAcessed, this, &MainWindow::handleSiteAcessed);
     connect(&watcher, &WebWatcher::siteChanged, this, &MainWindow::handleSiteChanged);
+    connect(&watcher, &WebWatcher::failToLoadPage, this, &MainWindow::handleFailToLoadPage);
+    connect(&watcher, &WebWatcher::requestOutdated, this, &MainWindow::handleRequestOutdated);
 
     const QStringList& units = ReadableDuration::supportedUnits();
     for (const QString& unit: units)
@@ -122,7 +125,6 @@ MainWindow::MainWindow (WebWatcherApplSettings& settings, QWidget *parent) : QMa
     const QString& filesDir = QDir::tempPath() + EDITOR_FILES_DIR;
     if (!QFile::exists(filesDir))
         QDir().mkpath(filesDir);
-    connect(ui.queryEdit, &QLineEdit::textEdited, this, &MainWindow::updateEditorFile);
     load();
 }
 
@@ -292,7 +294,7 @@ void MainWindow::handleRemoveSiteButton()
             decreaseChangeCount();
 
         int64_t id = item->data(ID).toLongLong();
-        qDebug() << "updated: " << updated << id;
+        Log::info("Remove watched site #%ld from UI and watching", id);
         watcher.removeSite(id);
 
         subsModel.removeRow(index.row());
@@ -401,6 +403,7 @@ void MainWindow::addSite(const QUrl& url, QString title, QString xmlQuery, int64
 
     int64_t id = watcher.addSite(description);
     assert(id != -1);
+    Log::info("New watched site (#%ld) have added", id);
 
     QStandardItem* entry = new QStandardItem(title.isEmpty() ? url.toString(): title);
     entry->setData(QVariant((qlonglong)id), ID);
@@ -414,7 +417,7 @@ void MainWindow::addSite(const QUrl& url, QString title, QString xmlQuery, int64
 
 void MainWindow::handleSiteChanged(int64_t id)
 {
-    qDebug() << "handleSiteChanged" << id;
+    Log::info("Watched site #%ld have updated", id);
     QStandardItem* siteItem = findItemById(id);
     if (siteItem)
     {
@@ -423,7 +426,7 @@ void MainWindow::handleSiteChanged(int64_t id)
         {
             const QString& storedManualTitle = siteItem->data(ST_ManualTitle).toString();
             siteItem->setText(itemName(*site, storedManualTitle));
-            qDebug() << "handle probe change from the site" << site->probes.size();
+            Log::info("Watched site #%ld now have %lu probes", id, site->probes.size());
 
             if (!siteItem->data(ST_Ignorable).toBool())
             {
@@ -473,6 +476,40 @@ void MainWindow::handleSiteAcessed(std::int64_t id)
     }
 }
 
+void MainWindow::handleFailToLoadPage(std::int64_t id, const QUrl& url)
+{
+    optional<WatchedSite> site = watcher.siteById(id);
+    if (site)
+    {
+        QStandardItem* siteItem = findItemById(id);
+        if (siteItem)
+        {
+            const QString& storedManualTitle = siteItem->data(ST_ManualTitle).toString();
+            QMessageBox::warning(this, tr("Warning - Page Loading"), tr("WebWatcher try to load url \"%1\" for watched site \"%2\", but page loading have failed. Check that the url is valid and not redirect to another url (which disabled in the application for proper user experience)").arg(url.toDisplayString()).arg(itemName(*site, storedManualTitle)));
+        }
+    }
+}
+
+void MainWindow::handleRequestOutdated(std::int64_t id, std::int64_t requestOutdateMs)
+{
+    optional<WatchedSite> site = watcher.siteById(id);
+    if (site)
+    {
+        QStandardItem* siteItem = findItemById(id);
+        if (siteItem)
+        {
+            const QString& storedManualTitle = siteItem->data(ST_ManualTitle).toString();
+            QMessageBox::critical(this, tr("Error - Request timeout"),
+                tr("WebWatcher try to load url \"%1\" for watched site \"%2\", but page loading\
+                have finished in proper time (before next update) and the loading tooks %3 seconds.\
+                It may be possible some Internet problems or internal problem with Qt Browser,\
+                which used for page loading. It is recommended to use another url for data collection"
+                ).arg(site->info.url.toDisplayString()).arg(itemName(*site, storedManualTitle)).arg(requestOutdateMs/1000.0)
+            );
+        }
+    }
+}
+
 void MainWindow::save()
 {
     QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
@@ -498,19 +535,33 @@ void MainWindow::save()
 
 void MainWindow::load()
 {
-    QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    const QString& saveFilename = path + QLatin1String("/webwatcher.xml");
-    const QString& previousSaveFilename = path + QLatin1String("/webwatcher.xml.old");
+    Log::info("Search for application data file (%s)", "webwatcher.xml");
+    const QString& writableLocationDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    const QString& saveFilename = writableLocationDir + QLatin1String("/webwatcher.xml");
+    const QString& previousSaveFilename = writableLocationDir + QLatin1String("/webwatcher.xml.old");
 
     bool usedOldFile = false;
+    bool saveFileFound = false;
     QFile file(saveFilename);
 
-    if (!QFile::exists(saveFilename))
+    if (QFile::exists(saveFilename))
+    {
+        saveFileFound = true;
+        Log::info("Found application data file (%s)", saveFilename.toLocal8Bit().data());
+    }
+    else
+    {
+        Log::warn("Application data file not found, try to found previous data file (%s)", "webwatcher.xml.old");
         if (QFile::exists(previousSaveFilename))
         {
+            Log::info("Previous application data file have found and will used");
             usedOldFile = true;
             file.setFileName(previousSaveFilename);
+            saveFileFound = true;
         }
+        else
+            Log::info("Previous data file not found, so this run is considered as first application run");
+    }
 
     if (file.open(QIODevice::ReadOnly))
     {
@@ -520,10 +571,16 @@ void MainWindow::load()
 
         fromXml(doc.firstChildElement(QLatin1String("WebWatcherApplication")));
 
+        Log::info("Found %d watched sites after the data file loading", watcher.ids().size());
+        Log::info("%d watched sites updates marked as unseen", changesCount);
+
         if (usedOldFile)
             QMessageBox::warning(this, tr("Warning - Savefile"), tr("Actual save file haven't found, but program content was restored from previous save file. Some changes can be lost, sorry for that."));
-
-        qDebug() << usedOldFile << file.fileName() << watcher.ids().size();
+    }
+    else if (saveFileFound)
+    {
+        Log::error("Can't open the data file \"%s\" for reading, must be fixed for proper application work", saveFilename.toLocal8Bit().data());
+        QMessageBox::critical(this, tr("Error - Savefile"), tr("WebWatcher try to use directory \"%1\" as read/write application data directory, but the application can't read file \"%2\" from the directory, which must be fixed and the application should have read/write access for this directory for proper working").arg(writableLocationDir).arg(saveFilename));
     }
 }
 
@@ -587,10 +644,14 @@ void MainWindow::handleSubsEdit()
             {
                 QString code = QString::fromLocal8Bit(fin.readAll());
                 ui.queryEdit->setText(code);
+                Log::info("Load data and remove the editor file (%s) for watched site #%ld", filename.toLocal8Bit().data(), id);
+                QFile::remove(filename);
             }
             else
-                ; //TODO error read handling
-            QFile::remove(filename);
+            {
+                Log::error("Fail to load data from editor file (%s) for watched site #%ld, must be fixed for proper work", filename.toLocal8Bit().data(), id);
+                QMessageBox::warning(this, tr("Warning - External Editor"), tr("WebWatcher try to load new site's query from external editing file \"%1\", but can't open it for reading, so update from external editing won't be applied").arg(filename));
+            }
         }
         info.jsQuery = ui.queryEdit->text();
         info.isDisabled = site->info.isDisabled;
@@ -804,6 +865,7 @@ void MainWindow::openEditor()
 
     int64_t id = item->data(ID).toLongLong();
 
+    bool openTempFile = true;
     QString filename = editorFileName(id);
     if(!QFile::exists(filename))
     {
@@ -811,9 +873,17 @@ void MainWindow::openEditor()
         if (fout.open(QFile::WriteOnly))
             fout.write(ui.queryEdit->text().toLocal8Bit());
         else
-            ; //TODO error handling
+        {
+            openTempFile = false;
+            Log::error("WebWatcher try to use temporary file (%s), but can't open it to writing, must be fixed for proper working", filename.toLocal8Bit().data());
+            QMessageBox::warning(this, tr("Warning - External Editor"), tr("WebWatcher try to use temporary file \"%1\" for external editor, but can't open it for writing, so external editor unavailable").arg(filename));
+        }
     }
-    QDesktopServices::openUrl(QUrl::fromLocalFile(filename));
+    if (openTempFile)
+    {
+        Log::info("Use temporary file (%s) as file for external editing for watched site #%ld", filename.toLocal8Bit().data(), id);
+        QDesktopServices::openUrl(QUrl::fromLocalFile(filename));
+    }
 }
 
 QString MainWindow::editorFileName(int64_t id)
@@ -824,24 +894,4 @@ QString MainWindow::editorFileName(int64_t id)
 void MainWindow::setUpdatedNoCounter (QStandardItem* item, bool value)
 {
     setUpdated(item, value, false);
-}
-
-void MainWindow::updateEditorFile()
-{
-    QStandardItem *item = subsModel.itemFromIndex(ui.subsView->currentIndex());
-
-    // Exit, if no model selection
-    if (item == nullptr)
-        return;
-
-    int64_t id = item->data(ID).toLongLong();
-    QString filename = editorFileName(id);
-    if(QFile::exists(filename))
-    {
-        QFile fout(filename);
-        if (fout.open(QFile::WriteOnly))
-            fout.write(ui.queryEdit->text().toLocal8Bit());
-        else
-            ; //TODO error handling
-    }
 }

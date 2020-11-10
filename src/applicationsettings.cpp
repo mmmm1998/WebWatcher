@@ -4,12 +4,13 @@
 #include <QDomElement>
 #include <QFile>
 
+#include "logging.hpp"
+
 WebWatcherApplSettings loadSettings(const QString& settingsFilepath)
 {
     WebWatcherApplSettings settings;
 
     QFile file(settingsFilepath);
-    //TODO: Better else branch?
     if (file.open(QFile::ReadOnly))
     {
         QDomDocument doc;
@@ -25,7 +26,10 @@ WebWatcherApplSettings loadSettings(const QString& settingsFilepath)
             settings.usedLanguage = defaultProgramSettings.usedLanguage;
     }
     else
+    {
+        Log::error("Can't open settings file \"%s\" for reading, use default settings", settingsFilepath.toLocal8Bit().data());
         settings = defaultProgramSettings;
+    }
 
     return settings;
 }

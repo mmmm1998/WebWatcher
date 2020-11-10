@@ -24,6 +24,7 @@ set (WEBSCANNER_HEADERS
     src/applicationsettings.hpp
     src/applicationlanguage.hpp
     src/watcherinputdialog.hpp
+    src/logging.hpp
 )
 
 set (WEBSCANNER_SOURCES
@@ -33,6 +34,7 @@ set (WEBSCANNER_SOURCES
     src/timeunit.cpp
     src/applicationsettings.cpp
     src/applicationlanguage.cpp
+    src/logging.cpp
     src/main.cpp
 )
 

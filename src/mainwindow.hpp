@@ -35,6 +35,8 @@ class MainWindow : public QMainWindow
     void handleSubsEdit();
     void handleSiteChanged(std::int64_t id);
     void handleSiteAcessed(std::int64_t id);
+    void handleFailToLoadPage(std::int64_t id, const QUrl& url);
+    void handleRequestOutdated(std::int64_t id, std::int64_t requestOutdateMs);
     void openEditor();
     void handleLanguageSettings();
 
@@ -63,7 +65,6 @@ public:
     void setDisabled(QStandardItem* item, bool value);
     void setNotResetable(QStandardItem* item, bool value);
     QString editorFileName(int64_t id);
-    void updateEditorFile();
     void initUiActions();
 
   private:
