@@ -1,2 +1,3 @@
 /build*
 *.kdev4
+third_party/cef/*

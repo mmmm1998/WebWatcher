@@ -35,8 +35,10 @@ class MainWindow : public QMainWindow
     void handleSubsEdit();
     void handleSiteChanged(std::int64_t id);
     void handleSiteAcessed(std::int64_t id);
-    void handleFailToLoadPage(std::int64_t id, const QUrl& url);
+    void handleFailToLoadPage(std::int64_t id, QUrl url);
     void handleRequestOutdated(std::int64_t id, std::int64_t requestOutdateMs);
+    void handleExceptionOccurred(std::int64_t id, QString exceptionText);
+    void handlePossibleQtExceptionOccurred(std::int64_t id);
     void openEditor();
     void handleLanguageSettings();
 

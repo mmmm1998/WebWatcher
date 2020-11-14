@@ -117,6 +117,8 @@ MainWindow::MainWindow (WebWatcherApplSettings& settings, QWidget *parent) : QMa
     connect(&watcher, &WebWatcher::siteChanged, this, &MainWindow::handleSiteChanged);
     connect(&watcher, &WebWatcher::failToLoadPage, this, &MainWindow::handleFailToLoadPage);
     connect(&watcher, &WebWatcher::requestOutdated, this, &MainWindow::handleRequestOutdated);
+    connect(&watcher, &WebWatcher::exceptionOccurred, this, &MainWindow::handleExceptionOccurred);
+    connect(&watcher, &WebWatcher::possibleQtExceptionOccurred, this, &MainWindow::handlePossibleQtExceptionOccurred);
 
     const QStringList& units = ReadableDuration::supportedUnits();
     for (const QString& unit: units)
@@ -476,7 +478,7 @@ void MainWindow::handleSiteAcessed(std::int64_t id)
     }
 }
 
-void MainWindow::handleFailToLoadPage(std::int64_t id, const QUrl& url)
+void MainWindow::handleFailToLoadPage(std::int64_t id, QUrl url)
 {
     optional<WatchedSite> site = watcher.siteById(id);
     if (site)
@@ -485,7 +487,12 @@ void MainWindow::handleFailToLoadPage(std::int64_t id, const QUrl& url)
         if (siteItem)
         {
             const QString& storedManualTitle = siteItem->data(ST_ManualTitle).toString();
-            QMessageBox::warning(this, tr("Warning - Page Loading"), tr("WebWatcher try to load url \"%1\" for watched site \"%2\", but page loading have failed. Check that the url is valid and not redirect to another url (which disabled in the application for proper user experience)").arg(url.toDisplayString()).arg(itemName(*site, storedManualTitle)));
+            QMessageBox::warning(this, tr("Warning - Page Loading"),
+                tr("WebWatcher try to load url \"%1\" for watched site \"%2\", but page loading have "\
+                "failed. Check that the url is valid and not redirect to another url (which disabled in "\
+                "the application for proper user experience)"
+                ).arg(url.toDisplayString()).arg(itemName(*site, storedManualTitle))
+            );
         }
     }
 }
@@ -500,11 +507,53 @@ void MainWindow::handleRequestOutdated(std::int64_t id, std::int64_t requestOutd
         {
             const QString& storedManualTitle = siteItem->data(ST_ManualTitle).toString();
             QMessageBox::critical(this, tr("Error - Request timeout"),
-                tr("WebWatcher try to load url \"%1\" for watched site \"%2\", but page loading\
-                have finished in proper time (before next update) and the loading tooks %3 seconds.\
-                It may be possible some Internet problems or internal problem with Qt Browser,\
-                which used for page loading. It is recommended to use another url for data collection"
+                tr("WebWatcher try to load url \"%1\" for watched site \"%2\", but page loading "\
+                "have finished in proper time (before next update) and the loading tooks %3 seconds. "\
+                "It may be possible some Internet problems or internal problem with Qt Browser, "\
+                "which used for page loading. It is recommended to use another url for data collection"
                 ).arg(site->info.url.toDisplayString()).arg(itemName(*site, storedManualTitle)).arg(requestOutdateMs/1000.0)
+            );
+        }
+    }
+}
+
+void MainWindow::handleExceptionOccurred(std::int64_t id, QString exceptionText)
+{
+    optional<WatchedSite> site = watcher.siteById(id);
+    if (site)
+    {
+        QStandardItem* siteItem = findItemById(id);
+        if (siteItem)
+        {
+            const QString& storedManualTitle = siteItem->data(ST_ManualTitle).toString();
+            QMessageBox::critical(this, tr("Error - JavaScript Exception"),
+                tr("WebWatcher try to execute javascript query for watched site \"%1\", but the execution "\
+                "have finished with javascript exception \"%2\". It is reccommended check the query script "\
+                "and correct all error or add javascript exception handling"
+                ).arg(itemName(*site, storedManualTitle)).arg(exceptionText)
+            );
+        }
+    }
+}
+
+void MainWindow::handlePossibleQtExceptionOccurred(std::int64_t id)
+{
+    optional<WatchedSite> site = watcher.siteById(id);
+    if (site)
+    {
+        QStandardItem* siteItem = findItemById(id);
+        if (siteItem)
+        {
+            const QString& storedManualTitle = siteItem->data(ST_ManualTitle).toString();
+            QMessageBox::warning(this, tr("Warning - Possible JavaScript Exception"),
+                tr("WebWatcher have execute javascript query for watched site \"%1\", but the execution "\
+                "have finished with empty string as result. And for Javascript execution have used Qt Web "\
+                "engine and the engine returns empty string when javascript errors occurres.  And with this "\
+                "in mind and the fact that returning empty strings is pretty uselessness, the program decided "\
+                "to warn you about this situation. It is also recommended to change your js query for not "\
+                "returning empty string in case of successful execution for preventing future false warnings. "\
+                "And it is also recommended to check your javascript code in a browser console on errors"
+                ).arg(itemName(*site, storedManualTitle))
             );
         }
     }
@@ -745,7 +794,7 @@ void MainWindow::fromXml(const QDomElement& content)
     QList<int64_t> subsOrder;
     const QDomNodeList& infoElems
         = content.firstChildElement(QLatin1String("WatchedSiteEntries")).elementsByTagName(WatchedEntryInfo::classXmlTagName);
-    for (size_t i = 0; i < infoElems.length(); i++)
+    for (int i = 0; i < infoElems.length(); i++)
     {
         const QDomElement& infoElem = infoElems.item(i).toElement();
         WatchedEntryInfo info;

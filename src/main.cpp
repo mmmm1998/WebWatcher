@@ -1,20 +1,53 @@
+#include <tuple>
+
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QTranslator>
 #include <QDir>
 #include <QStandardPaths>
+#include <QMetaType>
 
-#include "logging.hpp"
 #include "mainwindow.hpp"
+#include "logging.hpp"
 #include "timeunit.hpp"
 #include "applicationsettings.hpp"
 
+#include <cefengine.hpp>
+
+std::tuple<int, char**> duplicate(int argc, char *argv[])
+{
+    int argcd = argc;
+    char** argvd = new char*[argc];
+    for (int i = 0; i < argc; i++)
+    {
+        size_t size = strlen(argv[i]);
+        argvd[i] = new char[size+1];
+        strncpy(argvd[i], argv[i], size);
+        argvd[i][size] = '\0';
+    }
+    return {argcd, argvd};
+}
+
 int main (int argc, char *argv[]) {
+    // save argc and argv for Qt later using
+    // It is necessary, because after CEF inisialization argc will trash and argv[0] will contains entire command
+    int argcd; char** argvd;
+    std::tie(argcd, argvd) = duplicate(argc, argv);
+
+    // CEF 3 forking is actually exec, so it means, that forked process starts from `main` function
+    // So, I start CEF initizialization here
+    int chrome_exit_code = ChromiumWebEngine::init(argc, argv);
+    if (chrome_exit_code >= 0) {
+        return chrome_exit_code;
+    }
+
+    qRegisterMetaType<int64_t>("int64_t");
+
     int appReturnCode;
     do {
-        constexpr const char* version = "2.5.2";
+        constexpr const char* version = "2.6.0";
 
-        QApplication app(argc, argv);
+        QApplication app(argcd, argvd);
         app.setApplicationName(QLatin1String("webwatcher"));
         app.setApplicationVersion(QLatin1String(version));
 
@@ -95,6 +128,8 @@ int main (int argc, char *argv[]) {
 
         saveSettings(settingsFilepath, settings);
     } while (appReturnCode == MainWindow::EXIT_CODE_REBOOT);
+
+    ChromiumWebEngine::shutdown();
 
     return appReturnCode;
 }

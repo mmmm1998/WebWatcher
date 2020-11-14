@@ -14,6 +14,9 @@
 #include <QNetworkReply>
 #include <QDomDocument>
 #include <QDomElement>
+#include <QThread>
+
+#include "cefenginewrapper.hpp"
 
 class QWebEnginePage;
 
@@ -72,10 +75,10 @@ class WebWatcher: public QObject
   Q_OBJECT
   public:
     // Сreates a class instance, which is not watching over anyone
-    explicit WebWatcher() = default;
+    explicit WebWatcher();
     WebWatcher(const WebWatcher& other);
     WebWatcher(WebWatcher&& other);
-    ~WebWatcher() = default;
+    ~WebWatcher();
 
     /**
      * Add new target for watching
@@ -112,7 +115,7 @@ class WebWatcher: public QObject
      * @param site_id ID of the watched entry, which data will be changed (should be valid or nothing happens)
      * @param probe_number Sequence index in @c WatchedSite::probes of the watched entry (the numbers starts from 0)
      */
-    void removeSiteProbe(std::int64_t site_id, std::int64_t probe_number);
+    void removeSiteProbe(std::int64_t site_id, size_t probe_number);
 
     /**
      * List of watched entries
@@ -136,11 +139,16 @@ class WebWatcher: public QObject
     /// Emit, when previous request for watched entry wit @p id haven't finished until new request time. Time from previous request also added (@p requestOutdateMs)
     void requestOutdated(std::int64_t, std::int64_t requestOutdateMs);
     /// Emit, then page loading for watched entry with @p id have failed. The failed address also attached (@p url)
-    void failToLoadPage(std::int64_t id, const QUrl& url);
+    void failToLoadPage(std::int64_t id, QUrl url);
     /// Emit on each access of watched entry with this @p id
     void siteAcessed(std::int64_t id);
     /// Emit only, if result of query for this access is different from result of the previous access of watched entry with this @p id
     void siteChanged(std::int64_t id);
+    /// Emit only, then running jq query for watched site with this @p id will finished with Javascript exception with text @p exceptionText
+    void exceptionOccurred(std::int64_t id, QString exceptionText);
+    /// Emit only, then running jq query via qt web engine for watched site with this @p id will finished empty string\
+    (qt don't report exceptiona and errors, but return empty string as javascript result)
+    void possibleQtExceptionOccurred(std::int64_t id);
 
   /* ==================================================================================================================
    * =                                           Private class members                                                   =
@@ -148,17 +156,27 @@ class WebWatcher: public QObject
    */
   private slots:
     void handlePageLoad(std::int64_t id, bool success, QWebEnginePage* page);
-    void handleJsCallback(std::int64_t id, QVariant callbackResult, QWebEnginePage* page);
+    void handleJsCallbackFromQtWebEngine(std::int64_t id, QVariant callbackResult, QWebEnginePage* page);
     void updateSite(std::int64_t id);
+    void handleJsCallbackFromChromeEngine(std::int64_t id, const QString& scriptResult, bool haveException, const QString& pageTitle);
 
   private:
-    void doSiteUpdate(std::vector<WatchedSite>::iterator iter);
+    void handleJsCallback(std::int64_t id, const QString& callbackResult, const QString& pageTitle, bool haveException, QString exceptionText);
+    void doSiteUpdate(std::int64_t id, const WatchedSiteDescription& info, const QString& page_title);
     void addNamedTextNode(QDomElement& elem, QDomDocument& doc, QString name, QString text);
 
   private:
+    ChromiumWebEngineWrapper chromeEngine;
     std::vector<WatchedSite> sites;
     QMap<int, std::int64_t> processed;
+    QSet<std::int64_t> needCloudflareBypass;
     std::int64_t id_count{0};
+
+    static QString kCloudflareProtectedPageTitle;
+    static QString kCloudflareProtectedPageTextMark1;
+    static QString kCloudflareProtectedPageTextMark2;
+    static QString kTrue;
+    static QString kFalse;
 };
 
 #endif // WEBWATCHER_H
