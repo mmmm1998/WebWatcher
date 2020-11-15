@@ -488,7 +488,7 @@ void MainWindow::handleFailToLoadPage(std::int64_t id, QUrl url)
         {
             const QString& storedManualTitle = siteItem->data(ST_ManualTitle).toString();
             QMessageBox::warning(this, tr("Warning - Page Loading"),
-                tr("WebWatcher try to load url \"%1\" for watched site \"%2\", but page loading have "\
+                tr("WebWatcher have tried to load url \"%1\" for watched site \"%2\", but page loading have "\
                 "failed. Check that the url is valid and not redirect to another url (which disabled in "\
                 "the application for proper user experience)"
                 ).arg(url.toDisplayString()).arg(itemName(*site, storedManualTitle))
@@ -507,8 +507,8 @@ void MainWindow::handleRequestOutdated(std::int64_t id, std::int64_t requestOutd
         {
             const QString& storedManualTitle = siteItem->data(ST_ManualTitle).toString();
             QMessageBox::critical(this, tr("Error - Request timeout"),
-                tr("WebWatcher try to load url \"%1\" for watched site \"%2\", but page loading "\
-                "have finished in proper time (before next update) and the loading tooks %3 seconds. "\
+                tr("WebWatcher have tried to load url \"%1\" for watched site \"%2\", but page loading "\
+                "haven't finished in proper time (before next update) and the loading tooks %3 seconds. "\
                 "It may be possible some Internet problems or internal problem with Qt Browser, "\
                 "which used for page loading. It is recommended to use another url for data collection"
                 ).arg(site->info.url.toDisplayString()).arg(itemName(*site, storedManualTitle)).arg(requestOutdateMs/1000.0)
