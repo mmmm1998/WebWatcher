@@ -1,10 +1,12 @@
 #include <tuple>
 #include <iostream>
+#include <functional>
 
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QTranslator>
 #include <QDir>
+#include <QList>
 #include <QStandardPaths>
 #include <QMetaType>
 
@@ -14,6 +16,28 @@
 #include "applicationsettings.hpp"
 
 #include <cefengine.hpp>
+
+struct DelayedLog
+{
+    DelayedLog() = default;
+    ~DelayedLog() {print();}
+
+    void print()
+    {
+        for (auto iter = functors.begin(); iter != functors.end(); iter++)
+            iter->operator()();
+        functors.clear();
+    }
+
+    void push(std::function<void()> logFunction)
+    {
+        functors.push_back(std::move(logFunction));
+    }
+
+    QList<std::function<void()>> functors;
+};
+
+#define DELAYED_LOG(LOG_OBJECT, CAPTURE, CODE) LOG_OBJECT.push([CAPTURE](){CODE;});
 
 struct CefShutdownDefer
 {
@@ -56,15 +80,63 @@ int main (int argc, char *argv[]) {
 
     int appReturnCode;
     do {
-        constexpr const char* version = "2.6.1";
+        constexpr const char* version = "2.6.2";
 
         QApplication app(argcd, argvd);
         app.setApplicationName(QLatin1String("webwatcher"));
         app.setApplicationVersion(QLatin1String(version));
 
+        DelayedLog delayedLog;
+
+        DELAYED_LOG(delayedLog, version, Log::info("Start WebWatcher (v%s)", version))
+        // Load program settings
+        bool defaultSettingsUsed = false;
+        WebWatcherApplSettings settings;
+        const QLatin1String settingsFilename("webwatcher_settings.xml");
+        const QString& AppDataDirectory = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        const QString& settingsFilepath =  AppDataDirectory + QLatin1String("/") + settingsFilename;
+        DELAYED_LOG(delayedLog, AppDataDirectory, Log::info("Found writable application directory: \"%s\"", AppDataDirectory.toLocal8Bit().data()))
+        if (QFile::exists(settingsFilepath))
+        {
+            DELAYED_LOG(delayedLog, settingsFilename, Log::info("Found settings file (%s), load it", settingsFilename.data()))
+            settings = loadSettings(settingsFilepath);
+        }
+        else
+        {
+            DELAYED_LOG(delayedLog, ,Log::info("Settings file not found, use default settings"))
+            settings = defaultProgramSettings;
+            defaultSettingsUsed = true;
+        }
+
+        const QString& settingsLocaleCode = settings.usedLanguage.bcp47Name();
+        if (defaultSettingsUsed)
+            DELAYED_LOG(delayedLog, ,Log::info("Setup settings locale from system (%s)", QLocale::system().bcp47Name().toLocal8Bit().data()))
+        else
+            DELAYED_LOG(delayedLog, settingsLocaleCode, Log::info("Use settings locale (%s)", settingsLocaleCode.toLocal8Bit().data()))
+
+        //NOTE: Translator here because the object must be live in same scope, where live MainWindow and QApplication
+        QTranslator translator;
+        if (settingsLocaleCode != QString::fromLatin1("en"))
+        {
+            const QString& preferedLanguage = settings.usedLanguage.bcp47Name();
+            if (translator.load(settings.usedLanguage, QLatin1String("webwatcher"), QLatin1String("_"), QLatin1String(":/translations")))
+            {
+                DELAYED_LOG(delayedLog, preferedLanguage, Log::info("Found localization file for prefered language (%s), so use it", preferedLanguage.toLocal8Bit().data()))
+                const QString& testTranslation = translator.translate("MainWindow", "Settings");
+                DELAYED_LOG(delayedLog, testTranslation, Log::debug("Test founded translator: \"%s\" -> \"%s\"", "Settings", testTranslation.toLocal8Bit().data()))
+                bool success = app.installTranslator(&translator);
+                if (!success)
+                    DELAYED_LOG(delayedLog, &preferedLanguage, Log::error("Setting founded translator for language (%s) have failed with unknown error", preferedLanguage.toLocal8Bit().data()))
+            }
+            else
+                DELAYED_LOG(delayedLog, preferedLanguage, Log::info("Localization for prefered language (%s) not found, will used default english text", preferedLanguage.toLocal8Bit().data()))
+        }
+
         QCommandLineParser parser;
-        parser.setApplicationDescription(
-            QObject::tr("This application is designed to periodically check the content of web pages to determine if they have changed (so-called watched sites), and to manage the list of watched sites in an orderly and convenient way."));
+        parser.setApplicationDescription(QObject::tr(
+            "This application is designed to periodically check the content of web pages to determine if they have "\
+            "changed (so-called watched sites), and to manage the list of watched sites in an orderly and convenient way."
+        ));
         parser.addHelpOption();
         parser.addVersionOption();
 
@@ -75,67 +147,45 @@ int main (int argc, char *argv[]) {
 
         parser.parse(app.arguments());
 
-        const QString& requestedLogLevel = parser.value(logLevelOption).toLower();
-        if (requestedLogLevel == QLatin1String("debug"))
-            Log::setLevel(Log::Level::Debug);
-        else if (requestedLogLevel == QLatin1String("info"))
-            Log::setLevel(Log::Level::Info);
-        else if (requestedLogLevel == QLatin1String("warning"))
-            Log::setLevel(Log::Level::Warning);
-        else if (requestedLogLevel == QLatin1String("error"))
-            Log::setLevel(Log::Level::Error);
-        else if (requestedLogLevel == QLatin1String("fatal"))
-            Log::setLevel(Log::Level::Fatal);
-        else if (requestedLogLevel == QLatin1String("off"))
-            Log::setLevel(Log::Level::Off);
+        bool isHelpRequest = parser.isSet(QLatin1String("help"));
+        bool isVersionRequest = parser.isSet(QLatin1String("version"));
+        bool isCliRequest = isVersionRequest || isHelpRequest;
+
+        // No need to extra logging for CLI request like --help or --version or something else, Error level is enough
+        if (!isCliRequest)
+        {
+            const QString& requestedLogLevel = parser.value(logLevelOption).toLower();
+            if (requestedLogLevel == QLatin1String("debug"))
+                Log::setLevel(Log::Level::Debug);
+            else if (requestedLogLevel == QLatin1String("info"))
+                Log::setLevel(Log::Level::Info);
+            else if (requestedLogLevel == QLatin1String("warning"))
+                Log::setLevel(Log::Level::Warning);
+            else if (requestedLogLevel == QLatin1String("error"))
+                Log::setLevel(Log::Level::Error);
+            else if (requestedLogLevel == QLatin1String("fatal"))
+                Log::setLevel(Log::Level::Fatal);
+            else if (requestedLogLevel == QLatin1String("off"))
+                Log::setLevel(Log::Level::Off);
+            else
+                Log::setLevel(Log::Level::Info);
+        }
         else
-            Log::setLevel(Log::Level::Info);
+            Log::setLevel(Log::Level::Error);
+        //Print all log messages delayed before this moment
+        delayedLog.print();
 
         //Manual handle help and version option
-        if (parser.isSet(QLatin1String("help")))
+        //Execution this after translation installation is important
+        if (isHelpRequest)
         {
             std::cout << parser.helpText().toStdString() << std::endl;
             break;
         }
-        else if (parser.isSet(QLatin1String("version")))
+        else if (isVersionRequest)
         {
             std::cout << app.applicationVersion().toStdString() << std::endl;
             break;
-        }
-
-
-        Log::info("Start WebWatcher (v%s)", version);
-        // Load program settings
-        bool defaultSettingsUsed = false;
-        WebWatcherApplSettings settings;
-        const QLatin1String settingsFilename("webwatcher_settings.xml");
-        const QString& settingsFilepath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QLatin1String("/") + settingsFilename;
-        Log::info("Found writable application directory: \"%s\"", QStandardPaths::writableLocation(QStandardPaths::AppDataLocation).toLocal8Bit().data());
-        if (QFile::exists(settingsFilepath))
-        {
-            Log::info("Found settings file (%s), load it", settingsFilename.data());
-            settings = loadSettings(settingsFilepath);
-        }
-        else
-        {
-            Log::info("Settings file not found, use default settings");
-            settings = defaultProgramSettings;
-            defaultSettingsUsed = true;
-        }
-
-        const QString& settingsLocaleCode = settings.usedLanguage.bcp47Name();
-        if (defaultSettingsUsed)
-            Log::info("Setup settings locale from system (%s)", QLocale::system().bcp47Name().toLocal8Bit().data());
-        else
-            Log::info("Use settings locale (%s)", settingsLocaleCode.toLocal8Bit().data());
-
-        if (settingsLocaleCode != QString::fromLatin1("en"))
-        {
-            QTranslator translator;
-            if (translator.load(settings.usedLanguage, QLatin1String("webwatcher"), QLatin1String("_"), QLatin1String(":/translations")))
-                app.installTranslator(&translator);
-            else
-                Log::info("Localization for prefered language (%s) not found, will used default english text", settings.usedLanguage.bcp47Name().toLocal8Bit().data());
         }
 
         ReadableDuration::init();
