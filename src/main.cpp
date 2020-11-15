@@ -1,4 +1,5 @@
 #include <tuple>
+#include <iostream>
 
 #include <QApplication>
 #include <QCommandLineParser>
@@ -13,6 +14,15 @@
 #include "applicationsettings.hpp"
 
 #include <cefengine.hpp>
+
+struct CefShutdownDefer
+{
+    CefShutdownDefer() = default;
+    ~CefShutdownDefer() {
+        Log::debug("Call ChromiumWebEngine::shutdown()");
+        ChromiumWebEngine::shutdown();
+    }
+};
 
 std::tuple<int, char**> duplicate(int argc, char *argv[])
 {
@@ -40,12 +50,13 @@ int main (int argc, char *argv[]) {
     if (chrome_exit_code >= 0) {
         return chrome_exit_code;
     }
+    CefShutdownDefer defer;
 
     qRegisterMetaType<int64_t>("int64_t");
 
     int appReturnCode;
     do {
-        constexpr const char* version = "2.6.0";
+        constexpr const char* version = "2.6.1";
 
         QApplication app(argcd, argvd);
         app.setApplicationName(QLatin1String("webwatcher"));
@@ -58,11 +69,11 @@ int main (int argc, char *argv[]) {
         parser.addVersionOption();
 
         QCommandLineOption trayOption({QLatin1String("t"), QLatin1String("tray")}, QObject::tr("Startup WebWatcher in a tray", "tray CLI option explanation"));
-        QCommandLineOption logLevelOption(QLatin1String("loglevel"), QObject::tr("Set <level> for the application logging. Available options: debug, info, warning, error, fatal, off. Default logging level is info.", "verbose CLI option explanation"), QObject::tr("level"));
+        QCommandLineOption logLevelOption(QLatin1String("loglevel"), QObject::tr("Set <level> for the application logging. Available options: debug, info, warning, error, fatal, off. Default logging level is info.", "verbose CLI option explanation"), QLatin1String("level"), QLatin1String("info"));
         parser.addOption(trayOption);
         parser.addOption(logLevelOption);
 
-        parser.process(app);
+        parser.parse(app.arguments());
 
         const QString& requestedLogLevel = parser.value(logLevelOption).toLower();
         if (requestedLogLevel == QLatin1String("debug"))
@@ -79,6 +90,19 @@ int main (int argc, char *argv[]) {
             Log::setLevel(Log::Level::Off);
         else
             Log::setLevel(Log::Level::Info);
+
+        //Manual handle help and version option
+        if (parser.isSet(QLatin1String("help")))
+        {
+            std::cout << parser.helpText().toStdString() << std::endl;
+            break;
+        }
+        else if (parser.isSet(QLatin1String("version")))
+        {
+            std::cout << app.applicationVersion().toStdString() << std::endl;
+            break;
+        }
+
 
         Log::info("Start WebWatcher (v%s)", version);
         // Load program settings
@@ -128,8 +152,6 @@ int main (int argc, char *argv[]) {
 
         saveSettings(settingsFilepath, settings);
     } while (appReturnCode == MainWindow::EXIT_CODE_REBOOT);
-
-    ChromiumWebEngine::shutdown();
 
     return appReturnCode;
 }

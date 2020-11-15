@@ -31,6 +31,7 @@ int ChromiumWebEngine::init(int argc, char** argv)
     // Initialize the app without sandbox on for simplicity and page cache turned off
     CefSettings settings;
     settings.windowless_rendering_enabled = true;
+    settings.log_severity = LOGSEVERITY_FATAL;
     //settings.single_process = true;
     settings.no_sandbox = true;
     settings.persist_session_cookies = true;
