@@ -1,6 +1,7 @@
 #include "mainwindow.hpp"
 
 #include <cassert>
+#include <optional>
 
 #include <QCloseEvent>
 #include <QObject>
@@ -487,12 +488,17 @@ void MainWindow::handleFailToLoadPage(std::int64_t id, QUrl url)
         if (siteItem)
         {
             const QString& storedManualTitle = siteItem->data(ST_ManualTitle).toString();
-            QMessageBox::warning(this, tr("Warning - Page Loading"),
+            QMessageBox::StandardButton button = QMessageBox::warning(this, tr("Warning - Page Loading"),
                 tr("WebWatcher have tried to load url \"%1\" for watched site \"%2\", but page loading have "\
                 "failed. Check that the url is valid and not redirect to another url (which disabled in "\
-                "the application for proper user experience)"
-                ).arg(url.toDisplayString()).arg(itemName(*site, storedManualTitle))
+                "the application for proper user experience). Do you want to retry the request?"
+                ).arg(url.toDisplayString()).arg(itemName(*site, storedManualTitle)),
+                QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes
             );
+            if (button == QMessageBox::Yes)
+            {
+                watcher.updateNow(id);
+            }
         }
     }
 }

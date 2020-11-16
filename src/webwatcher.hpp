@@ -112,10 +112,16 @@ class WebWatcher: public QObject
     /**
      * This method allow to remove sertain piece of the loaded data for certain watched entry.
      * Usefull for situation, when the query result is invalid or wrong due some user error in JavaScript code
-     * @param site_id ID of the watched entry, which data will be changed (should be valid or nothing happens)
-     * @param probe_number Sequence index in @c WatchedSite::probes of the watched entry (the numbers starts from 0)
+     * @param id ID of the watched entry, which data will be changed (should be valid or nothing happens)
+     * @param probeNumber Sequence index in @c WatchedSite::probes of the watched entry (the numbers starts from 0)
      */
-    void removeSiteProbe(std::int64_t site_id, size_t probe_number);
+    void removeSiteProbe(std::int64_t id, size_t probeNumber);
+
+    /**
+     * Tell Webwatcher to update a watched site right now regardless of update updateIntervalMs
+     * @param id ID of the watched entry, which should be updated
+     */
+    void updateNow(std::int64_t id);
 
     /**
      * List of watched entries

@@ -80,7 +80,7 @@ int main (int argc, char *argv[]) {
 
     int appReturnCode;
     do {
-        constexpr const char* version = "2.6.2";
+        constexpr const char* version = "2.6.3";
 
         QApplication app(argcd, argvd);
         app.setApplicationName(QLatin1String("webwatcher"));

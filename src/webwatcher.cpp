@@ -321,13 +321,13 @@ void WebWatcher::addNamedTextNode(QDomElement& elem, QDomDocument& doc, QString 
     elem.appendChild(tmp);
 }
 
-void WebWatcher::removeSiteProbe(std::int64_t site_id, size_t probe_number)
+void WebWatcher::removeSiteProbe(std::int64_t id, size_t probeNumber)
 {
-    auto iter = std::find_if(sites.begin(), sites.end(), [site_id](const WatchedSite& site){return site.id == site_id;});
+    auto iter = std::find_if(sites.begin(), sites.end(), [id](const WatchedSite& site){return site.id == id;});
     if (iter != sites.end())
     {
-        if (probe_number < iter->probes.size())
-            iter->probes.erase(iter->probes.begin() + probe_number);
+        if (probeNumber < iter->probes.size())
+            iter->probes.erase(iter->probes.begin() + probeNumber);
 
         //Check, need we to change next update time, or we even should run update right now
         int64_t currentMs = QDateTime::currentMSecsSinceEpoch();
@@ -336,7 +336,16 @@ void WebWatcher::removeSiteProbe(std::int64_t site_id, size_t probe_number)
         if (currentMs > nextUpdateDate)
             doSiteUpdate(iter->id, iter->info, iter->page_title);
         else
-            QTimer::singleShot(nextUpdateDate-currentMs, this, [site_id, this](){this->updateSite(site_id);});
+            QTimer::singleShot(nextUpdateDate-currentMs, this, [id, this](){this->updateSite(id);});
+    }
+}
+
+void WebWatcher::updateNow(std::int64_t id)
+{
+    auto iter = std::find_if(sites.begin(), sites.end(), [id](const WatchedSite& site){return site.id == id;});
+    if (iter != sites.end())
+    {
+        doSiteUpdate(id, iter->info, iter->page_title);
     }
 }
 
