@@ -756,6 +756,7 @@ void MainWindow::increaseChangeCount()
 
 QDomElement MainWindow::toXml(QDomDocument& doc)
 {
+    Log::info("Save WebWatcher data to XML document");
     QDomElement root = doc.createElement(QLatin1String("WebWatcherApplication"));
 
     root.setAttribute(QLatin1String("changesCount"), changesCount);
@@ -786,6 +787,7 @@ QDomElement MainWindow::toXml(QDomDocument& doc)
 
 void MainWindow::fromXml(const QDomElement& content)
 {
+    Log::info("Load WebWatcher data from XML document");
     assert(content.tagName() == QLatin1String("WebWatcherApplication"));
 
     assert(content.attributes().contains(QLatin1String("changesCount")));

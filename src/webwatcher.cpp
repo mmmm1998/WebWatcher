@@ -172,6 +172,7 @@ void WebWatcher::handleJsCallbackFromQtWebEngine(int64_t id, QVariant callbackRe
 
 QDomElement WebWatcher::toXml(QDomDocument& doc)
 {
+    Log::info("[watcher] save inner data to XML document (QDomDocument)");
     QDomElement root = doc.createElement(QLatin1String("WebWatcher"));
 
     root.setAttribute(QLatin1String("id_counter"), QString::number(id_count));
@@ -209,6 +210,7 @@ QDomElement WebWatcher::toXml(QDomDocument& doc)
 
 void WebWatcher::fromXml(const QDomElement& content)
 {
+    Log::info("[webwatcher] load inner data from XML document (QDomDocument)");
     assert(content.tagName() == QLatin1String("WebWatcher"));
 
     assert(content.attributes().contains(QLatin1String("id_counter")));
