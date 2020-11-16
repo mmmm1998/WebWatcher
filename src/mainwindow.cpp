@@ -172,6 +172,8 @@ void MainWindow::initUiActions()
     connect(changeLanguageAction, &QAction::triggered, this, &MainWindow::handleLanguageSettings);
 
     ui.subsView->setContextMenuPolicy(Qt::ActionsContextMenu);
+
+    connect(ui.updateNowButton, &QPushButton::clicked, this, &MainWindow::handleUpdateNowRequest);
 }
 
 
@@ -721,6 +723,23 @@ void MainWindow::handleSubsEdit()
         watcher.updateSite(id, info, resetProbes);
 
         item->setText(itemName(*site, storedManualTitle));
+    }
+}
+
+void MainWindow::handleUpdateNowRequest()
+{
+    QStandardItem *item = subsModel.itemFromIndex(ui.subsView->currentIndex());
+
+    // Exit, if no model selection
+    if (item == nullptr)
+        return;
+
+    int64_t id = item->data(ID).toLongLong();
+    optional<WatchedSite> site = watcher.siteById(id);
+
+    if (site)
+    {
+        watcher.updateNow(id);
     }
 }
 

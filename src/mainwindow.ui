@@ -207,6 +207,13 @@
              </property>
             </widget>
            </item>
+           <item>
+            <widget class="QPushButton" name="updateNowButton">
+             <property name="text">
+              <string>Update Now</string>
+             </property>
+            </widget>
+           </item>
           </layout>
          </item>
         </layout>

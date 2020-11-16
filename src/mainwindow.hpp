@@ -33,6 +33,7 @@ class MainWindow : public QMainWindow
     void handleSubsClick(const QModelIndex &index);
     void handleSubsDoubleClick(const QModelIndex &index);
     void handleSubsEdit();
+    void handleUpdateNowRequest();
     void handleSiteChanged(std::int64_t id);
     void handleSiteAcessed(std::int64_t id);
     void handleFailToLoadPage(std::int64_t id, QUrl url);
