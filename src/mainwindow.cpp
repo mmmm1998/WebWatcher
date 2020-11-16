@@ -414,6 +414,8 @@ void MainWindow::addSite(const QUrl& url, QString title, QString xmlQuery, int64
     entry->setData(QVariant((qlonglong)id), ID);
     setUpdated(entry, false);
     setIgnorable(entry, false);
+    setDisabled(entry, false);
+    setNotResetable(entry, true);
     entry->setData(QVariant(title), ST_ManualTitle);
     entry->setDropEnabled(false); // Disable overwrite items by another items
 

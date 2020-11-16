@@ -78,9 +78,9 @@ int main (int argc, char *argv[]) {
 
     qRegisterMetaType<int64_t>("int64_t");
 
-    int appReturnCode;
+    int appReturnCode = 0;
     do {
-        constexpr const char* version = "2.6.4";
+        constexpr const char* version = "2.6.5";
 
         QApplication app(argcd, argvd);
         app.setApplicationName(QLatin1String("webwatcher"));
