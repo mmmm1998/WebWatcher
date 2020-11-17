@@ -9,6 +9,7 @@
 #include <QList>
 #include <QStandardPaths>
 #include <QMetaType>
+#include <QThread>
 
 #include "mainwindow.hpp"
 #include "logging.hpp"
@@ -80,7 +81,7 @@ int main (int argc, char *argv[]) {
 
     int appReturnCode = 0;
     do {
-        constexpr const char* version = "2.6.5";
+        constexpr const char* version = "2.7.0";
 
         QApplication app(argcd, argvd);
         app.setApplicationName(QLatin1String("webwatcher"));
@@ -141,8 +142,10 @@ int main (int argc, char *argv[]) {
         parser.addVersionOption();
 
         QCommandLineOption trayOption({QLatin1String("t"), QLatin1String("tray")}, QObject::tr("Startup WebWatcher in a tray", "tray CLI option explanation"));
+        QCommandLineOption delayOption(QLatin1String("delay"), QObject::tr("Delay in <time> seconds before inisialization GUI, useful for automatic startup on login"), QLatin1String("time"), QLatin1String("0"));
         QCommandLineOption logLevelOption(QLatin1String("loglevel"), QObject::tr("Set <level> for the application logging. Available options: debug, info, warning, error, fatal, off. Default logging level is info.", "verbose CLI option explanation"), QLatin1String("level"), QLatin1String("info"));
         parser.addOption(trayOption);
+        parser.addOption(delayOption);
         parser.addOption(logLevelOption);
 
         parser.parse(app.arguments());
@@ -186,6 +189,17 @@ int main (int argc, char *argv[]) {
         {
             std::cout << app.applicationVersion().toStdString() << std::endl;
             break;
+        }
+
+        if (parser.isSet(delayOption))
+        {
+            const QString& timeString = parser.value(delayOption).toLower();
+            bool ok = false;
+            int delayInSeconds = timeString.toInt(&ok);
+            if (ok)
+                QThread::sleep(delayInSeconds);
+            else
+                Log::info("Can't parse argument for delay option (\"%s\"), so delay won't happen", timeString);
         }
 
         ReadableDuration::init();
