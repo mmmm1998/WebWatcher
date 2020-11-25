@@ -24,36 +24,36 @@ QString WebWatcher::kFalse = QString::fromLatin1("false");
 
 WebWatcher::WebWatcher(): QObject()
 {
-    connect(&chromeEngine, &ChromiumWebEngineWrapper::scriptFinished, this, &WebWatcher::handleJsCallbackFromChromeEngine);
+    connect(&m_chromeEngine, &ChromiumWebEngineWrapper::scriptFinished, this, &WebWatcher::handleJsCallbackFromChromeEngine);
 }
 
 WebWatcher::~WebWatcher()
 {
 }
 
-int64_t WebWatcher::addSite(const WatchedSiteDescription& siteDescription)
+watch_id_t WebWatcher::addSite(const WatchedSiteDescription& siteDescription)
 {
     if (!siteDescription.url.isValid())
         return -1;
 
-    WatchedSite site{id_count++, siteDescription};
+    WatchedSite site{(watch_id_t)(m_id_count++), siteDescription};
     Log::info("[watcher] Add new watched site #%ld", site.id);
-    sites.push_back(site);
+    m_sites.push_back(site);
 
     updateSite(site.id);
     return site.id;
 }
 
-bool WebWatcher::updateSite(std::int64_t id, const WatchedSiteDescription& siteDescription, bool allowResetLoadedData)
+bool WebWatcher::updateSite(watch_id_t id, const WatchedSiteDescription& siteDescription, bool allowResetLoadedData)
 {
-    auto iter = std::find_if(sites.begin(), sites.end(), [id](const WatchedSite& iter_site){return iter_site.id == id;});
-    if (iter != sites.end())
+    auto iter = std::find_if( m_sites.begin(), m_sites.end(), [id](const WatchedSite& iter_site){return iter_site.id == id;});
+    if (iter != m_sites.end())
     {
         bool needResetProbes = allowResetLoadedData && (iter->info.url != siteDescription.url || iter->info.jsQuery != siteDescription.jsQuery);
 
         //With changing site maybe we don't need bypass for this id
-        if (iter->info.url != siteDescription.url && needCloudflareBypass.contains(id))
-            needCloudflareBypass.remove(iter->id);
+        if (iter->info.url != siteDescription.url && m_needCloudflareBypass.contains(id))
+            m_needCloudflareBypass.remove(iter->id);
 
         iter->info = siteDescription;
         if (needResetProbes)
@@ -64,35 +64,34 @@ bool WebWatcher::updateSite(std::int64_t id, const WatchedSiteDescription& siteD
         updateSite(id);
         return true;
     }
-    else
         return false;
 }
 
-void WebWatcher::removeSite(int64_t id)
+void WebWatcher::removeSite(watch_id_t id)
 {
-    auto iter = std::find_if(sites.begin(), sites.end(), [id](const WatchedSite& site){return site.id == id;});
-    if (iter != sites.end())
+    auto iter = std::find_if( m_sites.begin(), m_sites.end(), [id](const WatchedSite& site){return site.id == id;});
+    if (iter != m_sites.end())
     {
         Log::info("[watcher] Remove watched site #%ld", id);
-        sites.erase(iter);
+        m_sites.erase(iter);
     }
 
-    if (needCloudflareBypass.contains(id))
-        needCloudflareBypass.remove(id);
+    if ( m_needCloudflareBypass.contains(id))
+        m_needCloudflareBypass.remove(id);
 }
 
-void WebWatcher::updateSite(int64_t id)
+void WebWatcher::updateSite(watch_id_t id)
 {
-    auto iter = std::find_if(sites.begin(), sites.end(), [id](const WatchedSite& site){return site.id == id;});
-    if (iter != sites.end())
+    auto iter = std::find_if( m_sites.begin(), m_sites.end(), [id](const WatchedSite& site){return site.id == id;});
+    if (iter != m_sites.end())
     {
         int64_t currentMs = QDateTime::currentMSecsSinceEpoch();
         int64_t lastUpdateTimeMs = iter->probes.size() != 0 ? iter->probes.back().accessTime : 0;
         int64_t nextUpdateDate = lastUpdateTimeMs + iter->info.updateIntervalMs;
-        if (processed.keys().contains(id))
+        if ( m_processed.keys().contains(id))
         {
-            Log::error("[watcher] Request for #%ld have timeouted by %d seconds, so something wrong", id, currentMs - processed[id]);
-            emit requestOutdated(id, currentMs - processed[id]);
+            Log::error("[watcher] Request for #%ld have timeouted by %d seconds, so something wrong", id, currentMs - m_processed[id]);
+            emit requestOutdated(id, currentMs - m_processed[id]);
         }
         else
         {
@@ -104,19 +103,19 @@ void WebWatcher::updateSite(int64_t id)
     }
 }
 
-std::optional<WatchedSite> WebWatcher::siteById(int64_t id)
+std::optional<WatchedSite> WebWatcher::siteById(watch_id_t id)
 {
-    auto iter = std::find_if(sites.begin(), sites.end(), [id](const WatchedSite& site){return site.id == id;});
-    if (iter != sites.end())
+    auto iter = std::find_if( m_sites.begin(), m_sites.end(), [id](const WatchedSite& site){return site.id == id;});
+    if (iter != m_sites.end())
         return *iter;
     else
         return std::nullopt;
 }
 
-void WebWatcher::handlePageLoad(int64_t id, bool success, QWebEnginePage* page)
+void WebWatcher::handlePageLoad(watch_id_t id, bool success, QWebEnginePage* page)
 {
-    auto iter = std::find_if(sites.begin(), sites.end(), [id](const WatchedSite& site){return site.id == id;});
-    if (iter != sites.end())
+    auto iter = std::find_if( m_sites.begin(), m_sites.end(), [id](const WatchedSite& site){return site.id == id;});
+    if (iter != m_sites.end())
     {
         if (success && iter->info.url == page->requestedUrl())
         {
@@ -128,7 +127,7 @@ void WebWatcher::handlePageLoad(int64_t id, bool success, QWebEnginePage* page)
                     if (html.contains(kCloudflareProtectedPageTextMark1) && html.contains(kCloudflareProtectedPageTextMark2))
                     {
                         Log::info("[watcher] Found that watched site #%ld is protected by Cloudflare, enable Cloudflare bypass", id);
-                        needCloudflareBypass.insert(id);
+                        m_needCloudflareBypass.insert(id);
                         page->deleteLater();
                         this->doSiteUpdate(id, siteInfo, pageTitle);
                     }
@@ -150,13 +149,13 @@ void WebWatcher::handlePageLoad(int64_t id, bool success, QWebEnginePage* page)
         {
             Log::error("[watcher] Fail to load webpage for watched site #%ld, so something wrong", id);
             emit failToLoadPage(id, iter->info.url);
-            processed.remove(id);
+            m_processed.remove(id);
             page->deleteLater();
         }
     }
 }
 
-void WebWatcher::handleJsCallbackFromQtWebEngine(int64_t id, QVariant callbackResult, QWebEnginePage* page)
+void WebWatcher::handleJsCallbackFromQtWebEngine(watch_id_t id, QVariant callbackResult, QWebEnginePage* page)
 {
     //Qt don't allow getting information about exception - if error apears, then the callback result will be just empty string
     handleJsCallback(id, callbackResult.toString(), page->title(), false, QString());
@@ -175,9 +174,9 @@ QDomElement WebWatcher::toXml(QDomDocument& doc)
     Log::info("[watcher] Save inner data to XML document (QDomDocument)");
     QDomElement root = doc.createElement(QLatin1String("WebWatcher"));
 
-    root.setAttribute(QLatin1String("id_counter"), QString::number(id_count));
+    root.setAttribute(QLatin1String("id_counter"), QString::number( m_id_count ));
 
-    for(const WatchedSite& site: sites)
+    for(const WatchedSite& site: m_sites )
     {
         QDomElement siteElem = doc.createElement(QLatin1String("WatchedSite"));
 
@@ -192,7 +191,7 @@ QDomElement WebWatcher::toXml(QDomDocument& doc)
 
         addNamedTextNode(siteElem, doc, QLatin1String("Query"), site.info.jsQuery);
         addNamedTextNode(siteElem, doc, QLatin1String("Interval"), QString::number(site.info.updateIntervalMs));
-        addNamedTextNode(siteElem, doc, QLatin1String("NeedCloudflareBypass"), needCloudflareBypass.contains(site.id) ? kTrue : kFalse);
+        addNamedTextNode(siteElem, doc, QLatin1String("NeedCloudflareBypass"), m_needCloudflareBypass.contains(site.id) ? kTrue : kFalse);
 
         for (const WatchedSiteProbe& probe: site.probes)
         {
@@ -215,7 +214,7 @@ void WebWatcher::fromXml(const QDomElement& content)
 
     assert(content.attributes().contains(QLatin1String("id_counter")));
 
-    id_count = content.attribute(QLatin1String("id_counter")).toLongLong();
+    m_id_count = content.attribute(QLatin1String("id_counter")).toLongLong();
 
     const QDomNodeList& sitesElems = content.elementsByTagName(QLatin1String("WatchedSite"));
     for (int i = 0; i < sitesElems.length(); i++)
@@ -248,7 +247,7 @@ void WebWatcher::fromXml(const QDomElement& content)
         if (!bypassElem.isNull())
         {
             if (bypassElem.text() == kTrue)
-                needCloudflareBypass.insert(site.id);
+                m_needCloudflareBypass.insert(site.id);
         }
 
         const QDomNodeList& probesElems = siteElem.elementsByTagName(QLatin1String("WatchedSiteProbe"));
@@ -270,32 +269,32 @@ void WebWatcher::fromXml(const QDomElement& content)
             site.probes.push_back(probe);
         }
 
-        sites.push_back(site);
+        m_sites.push_back(site);
     }
 
     // Check need to update after loading
-    for (const WatchedSite& site: sites)
+    for (const WatchedSite& site: m_sites )
         updateSite(site.id);
 
 }
 
-QList<int64_t> WebWatcher::ids()
+QList<watch_id_t> WebWatcher::ids()
 {
-    QList<int64_t> list;
-    for (const WatchedSite& site: sites)
+    QList<watch_id_t> list;
+    for (const WatchedSite& site: m_sites )
         list.append(site.id);
     return list;
 }
 
-void WebWatcher::doSiteUpdate(std::int64_t id, const WatchedSiteDescription& info, const QString& page_title)
+void WebWatcher::doSiteUpdate(watch_id_t id, const WatchedSiteDescription& info, const QString& page_title)
 {
     if (!info.isDisabled)
     {
         Log::info("[watcher] Request update for watched site #%ld (%s)", id, page_title.toLocal8Bit().data());
-        if (needCloudflareBypass.contains(id))
+        if ( m_needCloudflareBypass.contains(id))
         {
             Log::info("[watcher] Use Cloudflare bypass for loading watched site #%ld", id);
-            chromeEngine.enqueueWebwatcherTask(id, info.url, info.jsQuery);
+            m_chromeEngine.enqueueWebwatcherTask(id, info.url, info.jsQuery);
         }
         else
         {
@@ -310,7 +309,7 @@ void WebWatcher::doSiteUpdate(std::int64_t id, const WatchedSiteDescription& inf
             page->load(info.url);
         }
 
-        processed[id] = QDateTime::currentMSecsSinceEpoch();
+        m_processed[id] = QDateTime::currentMSecsSinceEpoch();
     }
     Log::debug("[watcher] Plan to next update for #%ld in %f seconds", id, info.updateIntervalMs / 1000.0);
     QTimer::singleShot(info.updateIntervalMs, this, [id, this](){this->updateSite(id);});
@@ -323,10 +322,10 @@ void WebWatcher::addNamedTextNode(QDomElement& elem, QDomDocument& doc, QString 
     elem.appendChild(tmp);
 }
 
-void WebWatcher::removeSiteProbe(std::int64_t id, size_t probeNumber)
+void WebWatcher::removeSiteProbe(watch_id_t id, size_t probeNumber)
 {
-    auto iter = std::find_if(sites.begin(), sites.end(), [id](const WatchedSite& site){return site.id == id;});
-    if (iter != sites.end())
+    auto iter = std::find_if( m_sites.begin(), m_sites.end(), [id](const WatchedSite& site){return site.id == id;});
+    if (iter != m_sites.end())
     {
         if (probeNumber < iter->probes.size())
             iter->probes.erase(iter->probes.begin() + probeNumber);
@@ -342,24 +341,24 @@ void WebWatcher::removeSiteProbe(std::int64_t id, size_t probeNumber)
     }
 }
 
-void WebWatcher::updateNow(std::int64_t id)
+void WebWatcher::updateNow(watch_id_t id)
 {
-    auto iter = std::find_if(sites.begin(), sites.end(), [id](const WatchedSite& site){return site.id == id;});
-    if (iter != sites.end())
+    auto iter = std::find_if( m_sites.begin(), m_sites.end(), [id](const WatchedSite& site){return site.id == id;});
+    if (iter != m_sites.end())
     {
         doSiteUpdate(id, iter->info, iter->page_title);
     }
 }
 
-void WebWatcher::handleJsCallbackFromChromeEngine(std::int64_t id, const QString& scriptResult, bool haveException, const QString& pageTitle)
+void WebWatcher::handleJsCallbackFromChromeEngine(watch_id_t id, const QString& scriptResult, bool haveException, const QString& pageTitle)
 {
     handleJsCallback(id, scriptResult, pageTitle, haveException, scriptResult);
 }
 
-void WebWatcher::handleJsCallback(std::int64_t id, const QString& newData, const QString& pageTitle, bool haveException, QString exceptionText)
+void WebWatcher::handleJsCallback(watch_id_t id, const QString& newData, const QString& pageTitle, bool haveException, QString exceptionText)
 {
-    auto iter = std::find_if(sites.begin(), sites.end(), [id](const WatchedSite& site){return site.id == id;});
-    if (iter != sites.end())
+    auto iter = std::find_if( m_sites.begin(), m_sites.end(), [id](const WatchedSite& site){return site.id == id;});
+    if (iter != m_sites.end())
     {
         Log::info("[watcher] Successfuly run JS query for watched site #%ld", id);
         Log::debug("[watcher] Probe result \"%s\"", newData.toLocal8Bit().data());
@@ -396,5 +395,5 @@ void WebWatcher::handleJsCallback(std::int64_t id, const QString& newData, const
         }
 
     }
-    processed.remove(id);
+    m_processed.remove(id);
 }

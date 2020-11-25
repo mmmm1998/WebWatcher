@@ -34,12 +34,12 @@ class MainWindow : public QMainWindow
     void handleSubsDoubleClick(const QModelIndex &index);
     void handleSubsEdit();
     void handleUpdateNowRequest();
-    void handleSiteChanged(std::int64_t id);
-    void handleSiteAcessed(std::int64_t id);
-    void handleFailToLoadPage(std::int64_t id, QUrl url);
-    void handleRequestOutdated(std::int64_t id, std::int64_t requestOutdateMs);
-    void handleExceptionOccurred(std::int64_t id, QString exceptionText);
-    void handlePossibleQtExceptionOccurred(std::int64_t id);
+    void handleSiteChanged(watch_id_t id);
+    void handleSiteAcessed(watch_id_t id);
+    void handleFailToLoadPage(watch_id_t id, QUrl url);
+    void handleRequestOutdated(watch_id_t id, int64_t requestOutdateMs);
+    void handleExceptionOccurred(watch_id_t id, QString exceptionText);
+    void handlePossibleQtExceptionOccurred(watch_id_t id);
     void openEditor();
     void handleLanguageSettings();
 
@@ -75,14 +75,14 @@ public:
     QStandardItem* findItemById(int64_t id);
 
   private:
-    Ui::MainWindow ui;
-    QSystemTrayIcon* tray;
-    QStandardItemModel subsModel;
-    QStandardItemModel probesModel;
-    WebWatcher watcher;
-    int changesCount{0};
+    Ui::MainWindow m_ui;
+    QSystemTrayIcon* m_tray;
+    QStandardItemModel m_subsModel;
+    QStandardItemModel m_probesModel;
+    WebWatcher m_watcher;
+    int m_changesCount{0};
 
-    WebWatcherApplSettings& appSettings;
+    WebWatcherApplSettings& m_appSettings;
 
   private:
     static const int ID = Qt::UserRole + 1;

@@ -24,7 +24,7 @@ class QWebEnginePage;
 struct WatchedSiteProbe
 {
     /// Time of the acess in ms from epoch, see @c QDateTime::currentMSecsSinceEpoch
-    std::int64_t accessTime;
+    int64_t accessTime;
     /// Result of JavaScript query for the watched site
     QString text;
     /// Hash of the @c text
@@ -42,14 +42,15 @@ struct WatchedSiteDescription
     QString jsQuery;
     /// Minimal time of wating between site acessing in ms.
     /// @note actual time between can be more, that this, because the aplication, which use @c WebWatcher class need to work, when the time of next update will come.
-    std::int64_t updateIntervalMs;
+    int64_t updateIntervalMs;
 };
 
-// This structure contains description of watching process and all collected data during observation
+using watch_id_t = int64_t;
+/// This structure contains description of watching process and all collected data during observation
 struct WatchedSite
 {
-    // ID for watching site. Unique for all stored WatchedSite of certain class instance.
-    std::int64_t id;
+    /// ID for watching site. Unique for all stored WatchedSite of certain class instance.
+    watch_id_t id;
     /// Description of site watching parameter
     WatchedSiteDescription info;
 
@@ -85,20 +86,20 @@ class WebWatcher: public QObject
      * @param siteDescription Description of the site, which will be watched
      * @return Id of the watching entry, which will used in other class methods or @c -1, if @p site data is invalid (eg invalid url)
      */
-    std::int64_t addSite(const WatchedSiteDescription& siteDescription);
+    watch_id_t addSite(const WatchedSiteDescription& siteDescription);
 
     /**
      * Remove site from watching with all data loaded during observation
      * @param id ID of the removed watching entry (should be valid or nothing happens)
      */
-    void removeSite(std::int64_t id);
+    void removeSite(watch_id_t id);
 
     /**
      * Request full data (watched site description and loaded data) for certain watched entry.
      * @param id ID of the requested watching entry (should be valid or nothing happens)
      * @return @c std::optional, which contains data for valid (existed) ID and std::nullopt if the ID is invalid
      */
-    std::optional<WatchedSite> siteById(std::int64_t id);
+    std::optional<WatchedSite> siteById(watch_id_t id);
 
     /**
      * Updates parameters of certain watched entry.
@@ -107,7 +108,7 @@ class WebWatcher: public QObject
      * @param allowResetLoadedData Optional parameter (@c true by default). If it is @c false, then already loaded won't be deleted, else all loaded data will be cleaned (in certain cases)
      * @note When @p allowResetLoadedData is @c true the loaded data will be automatically reseted, but only if url or JavaScript query of new description (@p siteDescription) is differ from previous stored url or query (i.e. inverval update won't reseted the loaded data)
      */
-    bool updateSite(std::int64_t id, const WatchedSiteDescription& siteDescription, bool allowResetLoadedData = true);
+    bool updateSite(watch_id_t id, const WatchedSiteDescription& siteDescription, bool allowResetLoadedData = true);
 
     /**
      * This method allow to remove sertain piece of the loaded data for certain watched entry.
@@ -115,19 +116,19 @@ class WebWatcher: public QObject
      * @param id ID of the watched entry, which data will be changed (should be valid or nothing happens)
      * @param probeNumber Sequence index in @c WatchedSite::probes of the watched entry (the numbers starts from 0)
      */
-    void removeSiteProbe(std::int64_t id, size_t probeNumber);
+    void removeSiteProbe(watch_id_t id, size_t probeNumber);
 
     /**
      * Tell Webwatcher to update a watched site right now regardless of update updateIntervalMs
      * @param id ID of the watched entry, which should be updated
      */
-    void updateNow(std::int64_t id);
+    void updateNow(watch_id_t id);
 
     /**
      * List of watched entries
      * @return list with ID of all stored watched entry (so regardless of @c WatchedSiteDescription::isDisabled)
      */
-    QList<std::int64_t> ids();
+    QList<watch_id_t> ids();
 
     /**
      * Serialize class instance to XML form
@@ -143,40 +144,40 @@ class WebWatcher: public QObject
 
   signals:
     /// Emit, when previous request for watched entry wit @p id haven't finished until new request time. Time from previous request also added (@p requestOutdateMs)
-    void requestOutdated(std::int64_t, std::int64_t requestOutdateMs);
+    void requestOutdated(watch_id_t id, int64_t requestOutdateMs);
     /// Emit, then page loading for watched entry with @p id have failed. The failed address also attached (@p url)
-    void failToLoadPage(std::int64_t id, QUrl url);
+    void failToLoadPage(watch_id_t id, QUrl url);
     /// Emit on each access of watched entry with this @p id
-    void siteAcessed(std::int64_t id);
+    void siteAcessed(watch_id_t id);
     /// Emit only, if result of query for this access is different from result of the previous access of watched entry with this @p id
-    void siteChanged(std::int64_t id);
+    void siteChanged(watch_id_t id);
     /// Emit only, then running jq query for watched site with this @p id will finished with Javascript exception with text @p exceptionText
-    void exceptionOccurred(std::int64_t id, QString exceptionText);
+    void exceptionOccurred(watch_id_t id, QString exceptionText);
     /// Emit only, then running jq query via qt web engine for watched site with this @p id will finished empty string\
     (qt don't report exceptiona and errors, but return empty string as javascript result)
-    void possibleQtExceptionOccurred(std::int64_t id);
+    void possibleQtExceptionOccurred(watch_id_t id);
 
   /* ==================================================================================================================
    * =                                           Private class members                                                   =
    * ==================================================================================================================
    */
   private slots:
-    void handlePageLoad(std::int64_t id, bool success, QWebEnginePage* page);
-    void handleJsCallbackFromQtWebEngine(std::int64_t id, QVariant callbackResult, QWebEnginePage* page);
-    void updateSite(std::int64_t id);
-    void handleJsCallbackFromChromeEngine(std::int64_t id, const QString& scriptResult, bool haveException, const QString& pageTitle);
+    void handlePageLoad(watch_id_t id, bool success, QWebEnginePage* page);
+    void handleJsCallbackFromQtWebEngine(watch_id_t id, QVariant callbackResult, QWebEnginePage* page);
+    void updateSite(watch_id_t id);
+    void handleJsCallbackFromChromeEngine(watch_id_t id, const QString& scriptResult, bool haveException, const QString& pageTitle);
 
   private:
-    void handleJsCallback(std::int64_t id, const QString& callbackResult, const QString& pageTitle, bool haveException, QString exceptionText);
-    void doSiteUpdate(std::int64_t id, const WatchedSiteDescription& info, const QString& page_title);
+    void handleJsCallback(watch_id_t id, const QString& callbackResult, const QString& pageTitle, bool haveException, QString exceptionText);
+    void doSiteUpdate(watch_id_t id, const WatchedSiteDescription& info, const QString& page_title);
     void addNamedTextNode(QDomElement& elem, QDomDocument& doc, QString name, QString text);
 
   private:
-    ChromiumWebEngineWrapper chromeEngine;
-    std::vector<WatchedSite> sites;
-    QMap<int, std::int64_t> processed;
-    QSet<std::int64_t> needCloudflareBypass;
-    std::int64_t id_count{0};
+    ChromiumWebEngineWrapper m_chromeEngine;
+    std::vector<WatchedSite> m_sites;
+    QMap<int, watch_id_t> m_processed;
+    QSet<watch_id_t> m_needCloudflareBypass;
+    int64_t m_id_count{0};
 
     static QString kCloudflareProtectedPageTitle;
     static QString kCloudflareProtectedPageTextMark1;
